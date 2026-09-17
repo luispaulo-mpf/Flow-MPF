@@ -54,6 +54,10 @@ export function parseNumber(value: unknown): number | null {
     normalized = cleaned.replace(/\./g, "").replace(",", ".")
   } else if (hasComma) {
     normalized = cleaned.replace(",", ".")
+  } else if (hasDot && /^-?\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+    // Brazilian thousands grouping with no decimal shown (e.g. "21.250" is
+    // 21250, not 21.25) — only a comma ever marks a decimal in this format.
+    normalized = cleaned.replace(/\./g, "")
   }
   const num = Number(normalized)
   return Number.isFinite(num) ? num : null
