@@ -52,12 +52,31 @@ export async function createOrder(_prev: ActionResult, formData: FormData): Prom
     return { error: "Não foi possível criar o pedido." }
   }
 
+  const itemCodes = formData.getAll("item_code").map(String)
+  const itemDescriptions = formData.getAll("item_description").map(String)
+  const itemQuantities = formData.getAll("item_quantity").map(String)
+  const itemUnits = formData.getAll("item_unit").map(String)
+
+  const items = itemDescriptions
+    .map((description, i) => ({
+      order_id: order.id,
+      erp_item_code: itemCodes[i]?.trim() || null,
+      description: description.trim(),
+      quantity: Number(itemQuantities[i]) || 0,
+      unit: itemUnits[i]?.trim() || null,
+    }))
+    .filter((item) => item.description.length > 0)
+
+  if (items.length > 0) {
+    await supabase.from("order_items").insert(items)
+  }
+
   await logActivity(supabase, {
     companyId: user.companyId,
     userId: user.id,
     orderId: order.id,
     action: "Pedido criado",
-    description: `Pedido ${erpOrderNumber} criado manualmente.`,
+    description: `Pedido ${erpOrderNumber} criado manualmente com ${items.length} ${items.length === 1 ? "item" : "itens"}.`,
   })
 
   revalidatePath("/pedidos")
@@ -178,6 +197,62 @@ export async function updateOrderDeliveryDate(orderId: string, deliveryDate: str
   revalidatePath("/pedidos")
   revalidatePath(`/pedidos/${orderId}`)
   revalidatePath("/dashboard")
+}
+
+export async function addOrderItem(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const orderId = String(formData.get("order_id") ?? "")
+  if (!orderId) return { error: "Pedido inválido." }
+
+  try {
+    const { user, supabase, order } = await assertCanEditOrder(orderId)
+
+    const description = String(formData.get("description") ?? "").trim()
+    const code = String(formData.get("code") ?? "").trim() || null
+    const quantity = Number(formData.get("quantity")) || 0
+    const unit = String(formData.get("unit") ?? "").trim() || null
+
+    if (!description) return { error: "Informe a descrição do item." }
+
+    const { error } = await supabase.from("order_items").insert({
+      order_id: orderId,
+      erp_item_code: code,
+      description,
+      quantity,
+      unit,
+    })
+
+    if (error) return { error: "Não foi possível adicionar o item." }
+
+    await logActivity(supabase, {
+      companyId: user.companyId,
+      userId: user.id,
+      orderId,
+      action: "Pedido atualizado",
+      description: `Item "${description}" adicionado ao pedido ${order.erp_order_number}.`,
+    })
+
+    revalidatePath(`/pedidos/${orderId}`)
+    return { error: null }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro ao adicionar item." }
+  }
+}
+
+export async function deleteOrderItem(orderId: string, itemId: string) {
+  const { user, supabase, order } = await assertCanEditOrder(orderId)
+
+  const { error } = await supabase.from("order_items").delete().eq("id", itemId)
+  if (error) throw new Error("Não foi possível remover o item.")
+
+  await logActivity(supabase, {
+    companyId: user.companyId,
+    userId: user.id,
+    orderId,
+    action: "Pedido atualizado",
+    description: `Item removido do pedido ${order.erp_order_number}.`,
+  })
+
+  revalidatePath(`/pedidos/${orderId}`)
 }
 
 export async function updateOrderNotes(orderId: string, notes: string) {

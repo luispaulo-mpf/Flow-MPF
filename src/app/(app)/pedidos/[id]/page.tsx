@@ -3,15 +3,8 @@ import { requireUser, canEditOrder } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { listActiveUsers, listStatuses } from "@/lib/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { OrderHeader } from "./order-header"
+import { OrderItems } from "./order-items"
 import { OrderTasks } from "./order-tasks"
 import { OrderComments } from "./order-comments"
 import { OrderActivity } from "./order-activity"
@@ -71,44 +64,7 @@ export default async function OrderDetailPage({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Itens do pedido</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Qtd.</TableHead>
-                      <TableHead>Un.</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(items ?? []).map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="text-slate-500">{item.erp_item_code ?? "—"}</TableCell>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.unit ?? "—"}</TableCell>
-                        <TableCell>{item.status}</TableCell>
-                      </TableRow>
-                    ))}
-                    {(items ?? []).length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="py-6 text-center text-sm text-slate-500">
-                          Nenhum item cadastrado.
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <OrderItems orderId={order.id} items={items ?? []} canEdit={canEdit} />
 
           <OrderTasks orderId={order.id} tasks={tasks ?? []} users={users} />
 
