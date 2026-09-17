@@ -8,6 +8,7 @@ import { OrderItems } from "./order-items"
 import { OrderTasks } from "./order-tasks"
 import { OrderComments } from "./order-comments"
 import { OrderActivity } from "./order-activity"
+import { OrderAttachments } from "./order-attachments"
 
 export default async function OrderDetailPage({
   params,
@@ -29,34 +30,57 @@ export default async function OrderDetailPage({
 
   if (!order) notFound()
 
-  const [{ data: items }, statuses, users, { data: tasks }, { data: comments }, { data: logs }] =
-    await Promise.all([
-      supabase
-        .from("order_items")
-        .select("id, erp_item_code, description, quantity, unit, status")
-        .eq("order_id", id)
-        .order("created_at", { ascending: true }),
-      listStatuses(user.companyId),
-      listActiveUsers(user.companyId),
-      supabase
-        .from("tasks")
-        .select("id, title, status, priority, due_date, responsible_user_id, users:responsible_user_id(name)")
-        .eq("order_id", id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("comments")
-        .select("id, content, created_at, users(name)")
-        .eq("order_id", id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("activity_logs")
-        .select("id, action, description, created_at, users(name)")
-        .eq("order_id", id)
-        .order("created_at", { ascending: false })
-        .limit(50),
-    ])
+  const [
+    { data: items },
+    statuses,
+    itemStatuses,
+    users,
+    { data: tasks },
+    { data: comments },
+    { data: logs },
+    { data: attachments },
+  ] = await Promise.all([
+    supabase
+      .from("order_items")
+      .select("id, erp_item_code, description, quantity, unit, status_id, statuses(name, color)")
+      .eq("order_id", id)
+      .order("created_at", { ascending: true }),
+    listStatuses(user.companyId, "ORDER"),
+    listStatuses(user.companyId, "ITEM"),
+    listActiveUsers(user.companyId),
+    supabase
+      .from("tasks")
+      .select("id, title, status, priority, due_date, responsible_user_id, users:responsible_user_id(name)")
+      .eq("order_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("comments")
+      .select("id, content, created_at, users(name)")
+      .eq("order_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("activity_logs")
+      .select("id, action, description, created_at, users(name)")
+      .eq("order_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("order_attachments")
+      .select("id, file_name, storage_path, content_type, size_bytes, created_at, users:uploaded_by(name)")
+      .eq("order_id", id)
+      .order("created_at", { ascending: false }),
+  ])
 
   const canEdit = canEditOrder(user.role, order.responsible_user_id, user.id)
+
+  const attachmentsWithUrls = await Promise.all(
+    (attachments ?? []).map(async (att) => {
+      const { data: signed } = await supabase.storage
+        .from("order-attachments")
+        .createSignedUrl(att.storage_path, 3600)
+      return { ...att, url: signed?.signedUrl ?? null }
+    }),
+  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -64,7 +88,12 @@ export default async function OrderDetailPage({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
-          <OrderItems orderId={order.id} items={items ?? []} canEdit={canEdit} />
+          <OrderItems
+            orderId={order.id}
+            items={items ?? []}
+            itemStatuses={itemStatuses}
+            canEdit={canEdit}
+          />
 
           <OrderTasks orderId={order.id} tasks={tasks ?? []} users={users} />
 
@@ -82,6 +111,12 @@ export default async function OrderDetailPage({
               </CardContent>
             </Card>
           ) : null}
+          <OrderAttachments
+            orderId={order.id}
+            companyId={user.companyId}
+            attachments={attachmentsWithUrls}
+            canEdit={canEdit}
+          />
           <OrderActivity logs={logs ?? []} />
         </div>
       </div>

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { requireUser, canEditOrder, canManageOperations } from "@/lib/auth"
 import { logActivity } from "@/lib/activity-log"
+import { getDefaultStatusId } from "@/lib/queries"
 import { PRIORITIES } from "@/types/domain"
 
 export type ActionResult = { error: string | null }
@@ -57,6 +58,8 @@ export async function createOrder(_prev: ActionResult, formData: FormData): Prom
   const itemQuantities = formData.getAll("item_quantity").map(String)
   const itemUnits = formData.getAll("item_unit").map(String)
 
+  const defaultItemStatusId = await getDefaultStatusId(user.companyId, "ITEM")
+
   const items = itemDescriptions
     .map((description, i) => ({
       order_id: order.id,
@@ -64,6 +67,7 @@ export async function createOrder(_prev: ActionResult, formData: FormData): Prom
       description: description.trim(),
       quantity: Number(itemQuantities[i]) || 0,
       unit: itemUnits[i]?.trim() || null,
+      status_id: defaultItemStatusId,
     }))
     .filter((item) => item.description.length > 0)
 
@@ -213,12 +217,15 @@ export async function addOrderItem(_prev: ActionResult, formData: FormData): Pro
 
     if (!description) return { error: "Informe a descrição do item." }
 
+    const defaultItemStatusId = await getDefaultStatusId(user.companyId, "ITEM")
+
     const { error } = await supabase.from("order_items").insert({
       order_id: orderId,
       erp_item_code: code,
       description,
       quantity,
       unit,
+      status_id: defaultItemStatusId,
     })
 
     if (error) return { error: "Não foi possível adicionar o item." }
@@ -236,6 +243,31 @@ export async function addOrderItem(_prev: ActionResult, formData: FormData): Pro
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Erro ao adicionar item." }
   }
+}
+
+export async function updateOrderItemStatus(orderId: string, itemId: string, statusId: string) {
+  const { user, supabase, order } = await assertCanEditOrder(orderId)
+
+  const [{ data: status }, { data: item }] = await Promise.all([
+    supabase.from("statuses").select("name").eq("id", statusId).single(),
+    supabase.from("order_items").select("description").eq("id", itemId).single(),
+  ])
+
+  const { error } = await supabase
+    .from("order_items")
+    .update({ status_id: statusId })
+    .eq("id", itemId)
+  if (error) throw new Error("Não foi possível atualizar o status do item.")
+
+  await logActivity(supabase, {
+    companyId: user.companyId,
+    userId: user.id,
+    orderId,
+    action: "Pedido atualizado",
+    description: `Item "${item?.description ?? itemId}" do pedido ${order.erp_order_number} movido para "${status?.name ?? statusId}".`,
+  })
+
+  revalidatePath(`/pedidos/${orderId}`)
 }
 
 export async function deleteOrderItem(orderId: string, itemId: string) {

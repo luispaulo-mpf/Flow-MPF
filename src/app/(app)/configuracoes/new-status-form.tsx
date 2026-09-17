@@ -10,7 +10,13 @@ import { Plus } from "lucide-react"
 
 const initialState: ActionResult = { error: null }
 
-export function NewStatusForm({ nextPosition }: { nextPosition: number }) {
+export function NewStatusForm({
+  nextPosition,
+  scope,
+}: {
+  nextPosition: number
+  scope: "ORDER" | "ITEM"
+}) {
   const [state, formAction, pending] = useActionState(createStatus, initialState)
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -24,22 +30,31 @@ export function NewStatusForm({ nextPosition }: { nextPosition: number }) {
       action={formAction}
       className="grid grid-cols-1 items-end gap-2 border-t border-slate-200 pt-4 sm:grid-cols-[auto_1fr_auto_auto_auto]"
     >
+      <input type="hidden" name="scope" value={scope} />
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Cor</Label>
         <input type="color" name="color" defaultValue="#64748b" className="h-9 w-9 rounded border" />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Nome do novo status</Label>
-        <Input name="name" required placeholder="Ex.: Em separação" />
+        <Input
+          name="name"
+          required
+          placeholder={scope === "ORDER" ? "Ex.: Em separação" : "Ex.: Em corte"}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Posição</Label>
         <Input name="position" type="number" defaultValue={nextPosition} className="w-20" />
       </div>
-      <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600">
-        <Checkbox name="is_final" />
-        Final
-      </label>
+      {scope === "ORDER" ? (
+        <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600">
+          <Checkbox name="is_final" />
+          Final
+        </label>
+      ) : (
+        <span />
+      )}
       <Button type="submit" size="sm" disabled={pending}>
         <Plus className="size-4" />
         {pending ? "Adicionando..." : "Adicionar"}

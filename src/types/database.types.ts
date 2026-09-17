@@ -154,6 +154,64 @@ export type Database = {
         }
         Relationships: []
       }
+      order_attachments: {
+        Row: {
+          company_id: string
+          content_type: string | null
+          created_at: string
+          file_name: string
+          id: string
+          order_id: string
+          size_bytes: number | null
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          company_id: string
+          content_type?: string | null
+          created_at?: string
+          file_name: string
+          id?: string
+          order_id: string
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          content_type?: string | null
+          created_at?: string
+          file_name?: string
+          id?: string
+          order_id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_attachments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_attachments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -162,7 +220,7 @@ export type Database = {
           id: string
           order_id: string
           quantity: number
-          status: string
+          status_id: string | null
           unit: string | null
           updated_at: string
         }
@@ -173,7 +231,7 @@ export type Database = {
           id?: string
           order_id: string
           quantity?: number
-          status?: string
+          status_id?: string | null
           unit?: string | null
           updated_at?: string
         }
@@ -184,7 +242,7 @@ export type Database = {
           id?: string
           order_id?: string
           quantity?: number
-          status?: string
+          status_id?: string | null
           unit?: string | null
           updated_at?: string
         }
@@ -194,6 +252,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "statuses"
             referencedColumns: ["id"]
           },
         ]
@@ -278,6 +343,7 @@ export type Database = {
           is_final: boolean
           name: string
           position: number
+          scope: string
           updated_at: string
         }
         Insert: {
@@ -289,6 +355,7 @@ export type Database = {
           is_final?: boolean
           name: string
           position?: number
+          scope?: string
           updated_at?: string
         }
         Update: {
@@ -300,6 +367,7 @@ export type Database = {
           is_final?: boolean
           name?: string
           position?: number
+          scope?: string
           updated_at?: string
         }
         Relationships: [

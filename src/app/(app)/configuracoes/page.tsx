@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { requireUser } from "@/lib/auth"
+import { listStatuses } from "@/lib/queries"
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatusList } from "./status-list"
@@ -10,13 +11,10 @@ export default async function ConfiguracoesPage() {
   if (user.role !== "ADMIN") redirect("/dashboard")
 
   const supabase = await createClient()
-  const [{ data: company }, { data: statuses }] = await Promise.all([
+  const [{ data: company }, orderStatuses, itemStatuses] = await Promise.all([
     supabase.from("companies").select("id, name").eq("id", user.companyId).single(),
-    supabase
-      .from("statuses")
-      .select("id, name, position, color, is_final, active")
-      .eq("company_id", user.companyId)
-      .order("position", { ascending: true }),
+    listStatuses(user.companyId, "ORDER"),
+    listStatuses(user.companyId, "ITEM"),
   ])
 
   return (
@@ -35,8 +33,22 @@ export default async function ConfiguracoesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <StatusList statuses={statuses ?? []} />
-          <NewStatusForm nextPosition={(statuses?.length ?? 0) + 1} />
+          <StatusList statuses={orderStatuses} scope="ORDER" />
+          <NewStatusForm nextPosition={orderStatuses.length + 1} scope="ORDER" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Status de itens</CardTitle>
+          <CardDescription>
+            Controle os status disponíveis para cada item dentro de um pedido (ex.: em corte,
+            em produção, pronto).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <StatusList statuses={itemStatuses} scope="ITEM" />
+          <NewStatusForm nextPosition={itemStatuses.length + 1} scope="ITEM" />
         </CardContent>
       </Card>
     </div>

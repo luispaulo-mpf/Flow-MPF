@@ -17,7 +17,7 @@ type Status = {
 
 const initialState: ActionResult = { error: null }
 
-function StatusRow({ status }: { status: Status }) {
+function StatusRow({ status, scope }: { status: Status; scope: "ORDER" | "ITEM" }) {
   const [state, formAction, pending] = useActionState(updateStatus, initialState)
 
   return (
@@ -35,10 +35,14 @@ function StatusRow({ status }: { status: Status }) {
         className="w-20"
         title="Posição"
       />
-      <label className="flex items-center gap-1.5 text-sm text-slate-600">
-        <Checkbox name="is_final" defaultChecked={status.is_final} />
-        Final
-      </label>
+      {scope === "ORDER" ? (
+        <label className="flex items-center gap-1.5 text-sm text-slate-600">
+          <Checkbox name="is_final" defaultChecked={status.is_final} />
+          Final
+        </label>
+      ) : (
+        <span />
+      )}
       <label className="flex items-center gap-1.5 text-sm text-slate-600">
         <Checkbox name="active" defaultChecked={status.active} />
         Ativo
@@ -51,7 +55,7 @@ function StatusRow({ status }: { status: Status }) {
   )
 }
 
-export function StatusList({ statuses }: { statuses: Status[] }) {
+export function StatusList({ statuses, scope }: { statuses: Status[]; scope: "ORDER" | "ITEM" }) {
   if (statuses.length === 0) {
     return <p className="text-sm text-slate-500">Nenhum status cadastrado ainda.</p>
   }
@@ -59,7 +63,7 @@ export function StatusList({ statuses }: { statuses: Status[] }) {
   return (
     <div className="flex flex-col gap-2">
       {statuses.map((status) => (
-        <StatusRow key={status.id} status={status} />
+        <StatusRow key={status.id} status={status} scope={scope} />
       ))}
     </div>
   )

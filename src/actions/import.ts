@@ -160,6 +160,17 @@ export async function confirmImport(
     .from("statuses")
     .select("id")
     .eq("company_id", user.companyId)
+    .eq("scope", "ORDER")
+    .eq("active", true)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  const { data: defaultItemStatus } = await supabase
+    .from("statuses")
+    .select("id")
+    .eq("company_id", user.companyId)
+    .eq("scope", "ITEM")
     .eq("active", true)
     .order("position", { ascending: true })
     .limit(1)
@@ -203,6 +214,7 @@ export async function confirmImport(
           description: item.description,
           quantity: item.quantity,
           unit: item.unit,
+          status_id: defaultItemStatus?.id ?? null,
         })),
       )
     }

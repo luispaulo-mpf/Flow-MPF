@@ -13,8 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { addOrderItem, deleteOrderItem, type ActionResult } from "@/actions/orders"
+import { addOrderItem, deleteOrderItem, updateOrderItemStatus, type ActionResult } from "@/actions/orders"
 import { Plus, Trash2 } from "lucide-react"
+
+type ItemStatus = { id: string; name: string; color: string }
 
 type Item = {
   id: string
@@ -22,18 +24,72 @@ type Item = {
   description: string
   quantity: number
   unit: string | null
-  status: string
+  status_id: string | null
+  statuses: { name: string; color: string } | null
 }
 
 const initialState: ActionResult = { error: null }
 
+function ItemStatusSelect({
+  orderId,
+  item,
+  itemStatuses,
+  canEdit,
+}: {
+  orderId: string
+  item: Item
+  itemStatuses: ItemStatus[]
+  canEdit: boolean
+}) {
+  const [, startTransition] = useTransition()
+
+  if (!canEdit) {
+    return item.statuses ? (
+      <span className="inline-flex items-center gap-1.5 text-sm text-slate-600">
+        <span className="size-2 rounded-full" style={{ backgroundColor: item.statuses.color }} />
+        {item.statuses.name}
+      </span>
+    ) : (
+      <span className="text-sm text-slate-400">—</span>
+    )
+  }
+
+  return (
+    <select
+      defaultValue={item.status_id ?? ""}
+      onChange={(e) => {
+        const statusId = e.target.value
+        startTransition(async () => {
+          try {
+            await updateOrderItemStatus(orderId, item.id, statusId)
+          } catch {
+            toast.error("Não foi possível atualizar o status do item.")
+          }
+        })
+      }}
+      className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+    >
+      <option value="" disabled>
+        Selecione
+      </option>
+      {itemStatuses.map((s) => (
+        <option key={s.id} value={s.id}>
+          {s.name}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 export function OrderItems({
   orderId,
   items,
+  itemStatuses,
   canEdit,
 }: {
   orderId: string
   items: Item[]
+  itemStatuses: ItemStatus[]
   canEdit: boolean
 }) {
   const [showForm, setShowForm] = useState(false)
@@ -113,7 +169,14 @@ export function OrderItems({
                   <TableCell>{item.description}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{item.unit ?? "—"}</TableCell>
-                  <TableCell>{item.status}</TableCell>
+                  <TableCell>
+                    <ItemStatusSelect
+                      orderId={orderId}
+                      item={item}
+                      itemStatuses={itemStatuses}
+                      canEdit={canEdit}
+                    />
+                  </TableCell>
                   {canEdit ? (
                     <TableCell>
                       <Button

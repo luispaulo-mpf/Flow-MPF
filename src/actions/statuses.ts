@@ -14,6 +14,7 @@ export async function createStatus(_prev: ActionResult, formData: FormData): Pro
   const color = String(formData.get("color") ?? "#64748b")
   const position = Number(formData.get("position") ?? 0)
   const isFinal = formData.get("is_final") === "on"
+  const scope = formData.get("scope") === "ITEM" ? "ITEM" : "ORDER"
 
   if (!name) return { error: "Informe um nome para o status." }
 
@@ -24,6 +25,7 @@ export async function createStatus(_prev: ActionResult, formData: FormData): Pro
     color,
     position,
     is_final: isFinal,
+    scope,
   })
 
   if (error) {

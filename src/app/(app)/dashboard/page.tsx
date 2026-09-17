@@ -41,7 +41,8 @@ export default async function DashboardPage() {
     supabase
       .from("statuses")
       .select("id, name, color, is_final")
-      .eq("company_id", user.companyId),
+      .eq("company_id", user.companyId)
+      .eq("scope", "ORDER"),
     supabase
       .from("orders")
       .select(
