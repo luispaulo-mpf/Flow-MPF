@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireUser, canManageOperations } from "@/lib/auth"
 import { logActivity } from "@/lib/activity-log"
 import { mapHeaders, parseDate, parseNumber, parseSpreadsheet } from "@/lib/import/parse"
+import { extractPdfText, isPedidosReportText, parsePedidosReport } from "@/lib/import/parse-pdf"
 import type { ImportOrderGroup, ImportPreview } from "@/lib/import/types"
 
 export type PreviewState = { preview: ImportPreview | null; error: string | null }
@@ -21,10 +22,50 @@ export async function previewImport(
 
   const file = formData.get("file")
   if (!(file instanceof File) || file.size === 0) {
-    return { preview: null, error: "Selecione um arquivo XLSX ou CSV." }
+    return { preview: null, error: "Selecione um arquivo XLSX, CSV ou PDF." }
   }
 
   const buffer = await file.arrayBuffer()
+  const supabase = await createClient()
+  const { data: existingOrders } = await supabase
+    .from("orders")
+    .select("erp_order_number")
+    .eq("company_id", user.companyId)
+
+  const existingSet = new Set((existingOrders ?? []).map((o) => o.erp_order_number))
+
+  if (file.name.toLowerCase().endsWith(".pdf")) {
+    let text: string
+    try {
+      text = await extractPdfText(buffer)
+    } catch {
+      return { preview: null, error: "Não foi possível ler o PDF. Verifique o arquivo." }
+    }
+
+    if (!isPedidosReportText(text)) {
+      return {
+        preview: null,
+        error:
+          "Este PDF não parece ser o relatório \"Listagem de Pedidos\" do ERP. Exporte a listagem de pedidos por data de entrega e envie novamente.",
+      }
+    }
+
+    const { orders, rowErrors } = parsePedidosReport(text)
+    const orderedGroups = orders.map((o) => ({
+      ...o,
+      kind: (existingSet.has(o.erpOrderNumber) ? "ATUALIZADO" : "NOVO") as "NOVO" | "ATUALIZADO",
+    }))
+
+    if (orderedGroups.length === 0) {
+      return { preview: null, error: "Nenhum pedido reconhecido neste PDF." }
+    }
+
+    return {
+      preview: { fileName: file.name, orders: orderedGroups, rowErrors },
+      error: null,
+    }
+  }
+
   let headers: string[]
   let rows: unknown[][]
 
@@ -45,14 +86,6 @@ export async function previewImport(
       error: `Colunas obrigatórias não encontradas: ${missing.join(", ")}.`,
     }
   }
-
-  const supabase = await createClient()
-  const { data: existingOrders } = await supabase
-    .from("orders")
-    .select("erp_order_number")
-    .eq("company_id", user.companyId)
-
-  const existingSet = new Set((existingOrders ?? []).map((o) => o.erp_order_number))
 
   const groups = new Map<string, ImportOrderGroup>()
   const rowErrors: string[] = []
@@ -122,6 +155,16 @@ export async function confirmImport(
   }
 
   const supabase = await createClient()
+
+  const { data: defaultStatus } = await supabase
+    .from("statuses")
+    .select("id")
+    .eq("company_id", user.companyId)
+    .eq("active", true)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
   let novos = 0
   let atualizados = 0
   let falhas = 0
@@ -137,6 +180,9 @@ export async function confirmImport(
           issue_date: group.issueDate,
           delivery_date: group.deliveryDate,
           total_value: group.totalValue,
+          // Only stamp a default status on brand-new orders; never overwrite
+          // the status of an order someone has already triaged on the Kanban.
+          ...(group.kind === "NOVO" && defaultStatus ? { status_id: defaultStatus.id } : {}),
         },
         { onConflict: "company_id,erp_order_number" },
       )

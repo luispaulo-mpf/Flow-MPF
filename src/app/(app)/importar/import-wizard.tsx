@@ -20,6 +20,11 @@ const previewInitial: PreviewState = { preview: null, error: null }
 const confirmInitial: ConfirmState = { success: false, error: null, summary: null }
 
 export function ImportWizard() {
+  const [resetKey, setResetKey] = useState(0)
+  return <ImportWizardInner key={resetKey} onReset={() => setResetKey((k) => k + 1)} />
+}
+
+function ImportWizardInner({ onReset }: { onReset: () => void }) {
   const router = useRouter()
   const [previewState, previewAction, previewPending] = useActionState(
     previewImport,
@@ -62,7 +67,7 @@ export function ImportWizard() {
         >
           <FileSpreadsheet className="size-8 text-slate-400" />
           <span className="text-sm font-medium text-slate-700">
-            {fileName ?? "Clique para selecionar um arquivo XLSX ou CSV"}
+            {fileName ?? "Clique para selecionar um arquivo XLSX, CSV ou PDF"}
           </span>
           <span className="text-xs text-slate-400">ou arraste o arquivo até aqui</span>
         </label>
@@ -70,7 +75,7 @@ export function ImportWizard() {
           id="file"
           name="file"
           type="file"
-          accept=".xlsx,.xls,.csv"
+          accept=".xlsx,.xls,.csv,.pdf"
           className="sr-only"
           onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
           required
@@ -168,7 +173,7 @@ export function ImportWizard() {
           <span />
         )}
         <div className="flex gap-2">
-          <Button type="button" variant="ghost" onClick={() => window.location.assign("/importar")}>
+          <Button type="button" variant="ghost" onClick={onReset}>
             Cancelar
           </Button>
           <Button type="submit" disabled={confirmPending || validOrders.length === 0}>

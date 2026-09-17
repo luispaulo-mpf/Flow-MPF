@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState } from "react"
+import Link from "next/link"
 import { signIn, type LoginState } from "@/actions/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,7 +27,12 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="password">Senha</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Senha</Label>
+          <Link href="/esqueci-senha" className="text-xs text-primary hover:underline">
+            Esqueci minha senha
+          </Link>
+        </div>
         <Input
           id="password"
           name="password"

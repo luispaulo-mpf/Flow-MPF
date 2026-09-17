@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { Menu, Plus, LogOut, UploadCloud } from "lucide-react"
 import { SidebarNav } from "@/components/sidebar-nav"
@@ -35,11 +36,18 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
   return (
     <div className="flex min-h-screen bg-slate-50">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar py-4 md:flex">
-        <div className="mb-6 px-4">
-          <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">
-            MPF Flow
+        <div className="mb-6 flex items-center gap-2 px-4">
+          <Image
+            src="/brand/mpf-logo-white.svg"
+            alt="MPF Hidráulicos"
+            width={132}
+            height={74}
+            className="h-8 w-auto"
+            priority
+          />
+          <span className="rounded-full border border-sidebar-foreground/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/80">
+            Flow
           </span>
-          <p className="text-xs text-sidebar-foreground/60">MPF Hidráulicos</p>
         </div>
         <SidebarNav role={user.role} />
       </aside>
@@ -54,9 +62,16 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
             </SheetTrigger>
             <SheetContent side="left" className="w-64 bg-sidebar p-0">
               <SheetTitle className="sr-only">Menu</SheetTitle>
-              <div className="px-4 py-4">
-                <span className="text-lg font-semibold tracking-tight text-sidebar-foreground">
-                  MPF Flow
+              <div className="flex items-center gap-2 px-4 py-4">
+                <Image
+                  src="/brand/mpf-logo-white.svg"
+                  alt="MPF Hidráulicos"
+                  width={132}
+                  height={74}
+                  className="h-8 w-auto"
+                />
+                <span className="rounded-full border border-sidebar-foreground/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/80">
+                  Flow
                 </span>
               </div>
               <SidebarNav role={user.role} onNavigate={() => setOpen(false)} />

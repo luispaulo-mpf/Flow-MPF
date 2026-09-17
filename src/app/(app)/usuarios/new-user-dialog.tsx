@@ -31,7 +31,6 @@ export function NewUserDialog() {
       formRef.current?.reset()
     }
     wasPending.current = pending
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, state])
 
   return (

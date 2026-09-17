@@ -12,17 +12,23 @@ export default async function ImportarPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-slate-900">Importar do ERP</h1>
         <p className="text-sm text-slate-500">
-          Envie um arquivo XLSX ou CSV exportado do ERP para criar ou atualizar pedidos.
+          Envie um arquivo XLSX, CSV ou o PDF de &ldquo;Listagem de Pedidos&rdquo; do ERP para
+          criar ou atualizar pedidos.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Colunas esperadas</CardTitle>
+          <CardTitle className="text-base">Formatos aceitos</CardTitle>
           <CardDescription>
-            Código do pedido, Cliente, Data emissão, Data entrega, Valor, Código do item,
-            Descrição, Quantidade, Unidade. A chave do pedido é empresa + número do pedido —
-            pedidos existentes são atualizados, nunca duplicados.
+            <strong>XLSX/CSV:</strong> colunas Código do pedido, Cliente, Data emissão, Data
+            entrega, Valor, Código do item, Descrição, Quantidade, Unidade.
+            <br />
+            <strong>PDF:</strong> o relatório &ldquo;Listagem de Pedidos — Produtos por data de
+            entrega&rdquo; exportado direto do ERP, sem precisar reformatar nada.
+            <br />
+            Em ambos os casos, a chave do pedido é empresa + número do pedido — pedidos
+            existentes são atualizados, nunca duplicados.
           </CardDescription>
         </CardHeader>
         <CardContent>

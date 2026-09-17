@@ -1,3 +1,4 @@
+import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoginForm } from "./login-form"
 
@@ -12,9 +13,16 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-screen flex-1 items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">MPF Flow</h1>
-          <p className="mt-1 text-sm text-slate-500">Camada de execução operacional</p>
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Image
+            src="/brand/mpf-logo-color.svg"
+            alt="MPF Hidráulicos"
+            width={132}
+            height={74}
+            className="h-12 w-auto"
+            priority
+          />
+          <p className="mt-2 text-sm text-slate-500">MPF Flow · Camada de execução operacional</p>
         </div>
         <Card>
           <CardHeader>
