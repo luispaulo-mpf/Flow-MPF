@@ -4,7 +4,7 @@ export async function listStatuses(companyId: string, scope: "ORDER" | "ITEM" = 
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("statuses")
-    .select("id, name, position, color, is_final, active")
+    .select("id, name, position, color, is_final, active, stage_key")
     .eq("company_id", companyId)
     .eq("scope", scope)
     .order("position", { ascending: true })

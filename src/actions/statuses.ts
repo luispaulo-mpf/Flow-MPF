@@ -49,18 +49,26 @@ export async function updateStatus(_prev: ActionResult, formData: FormData): Pro
   const position = Number(formData.get("position") ?? 0)
   const isFinal = formData.get("is_final") === "on"
   const active = formData.get("active") === "on"
+  const stageKeyRaw = String(formData.get("stage_key") ?? "")
+  const stageKey = stageKeyRaw === "ENGENHARIA" || stageKeyRaw === "PCP" ? stageKeyRaw : null
 
   if (!id || !name) return { error: "Dados inválidos." }
 
   const supabase = await createClient()
   const { error } = await supabase
     .from("statuses")
-    .update({ name, color, position, is_final: isFinal, active })
+    .update({ name, color, position, is_final: isFinal, active, stage_key: stageKey })
     .eq("id", id)
     .eq("company_id", user.companyId)
 
   if (error) {
-    if (error.code === "23505") return { error: "Já existe um status com esse nome." }
+    if (error.code === "23505") {
+      return {
+        error: stageKey
+          ? "Já existe outro status marcado com esse papel de etapa."
+          : "Já existe um status com esse nome.",
+      }
+    }
     return { error: "Não foi possível atualizar o status." }
   }
 

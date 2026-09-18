@@ -166,7 +166,11 @@ function ImportWizardInner({ onReset }: { onReset: () => void }) {
       </div>
 
       <form action={confirmAction} className="flex items-center justify-between gap-3">
-        <input type="hidden" name="payload" value={JSON.stringify(validOrders)} />
+        <input
+          type="hidden"
+          name="payload"
+          value={JSON.stringify({ reportType: preview.reportType, orders: validOrders })}
+        />
         {confirmState.error ? (
           <p className="text-sm text-destructive">{confirmState.error}</p>
         ) : (

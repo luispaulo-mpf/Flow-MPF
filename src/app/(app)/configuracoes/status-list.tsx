@@ -13,6 +13,7 @@ type Status = {
   color: string
   is_final: boolean
   active: boolean
+  stage_key: string | null
 }
 
 const initialState: ActionResult = { error: null }
@@ -23,7 +24,7 @@ function StatusRow({ status, scope }: { status: Status; scope: "ORDER" | "ITEM" 
   return (
     <form
       action={formAction}
-      className="grid grid-cols-1 items-center gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-[auto_1fr_auto_auto_auto_auto]"
+      className="grid grid-cols-1 items-center gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-[auto_1fr_auto_auto_auto_auto_auto]"
     >
       <input type="hidden" name="id" value={status.id} />
       <input type="color" name="color" defaultValue={status.color} className="h-9 w-9 rounded border" />
@@ -40,6 +41,20 @@ function StatusRow({ status, scope }: { status: Status; scope: "ORDER" | "ITEM" 
           <Checkbox name="is_final" defaultChecked={status.is_final} />
           Final
         </label>
+      ) : (
+        <span />
+      )}
+      {scope === "ORDER" ? (
+        <select
+          name="stage_key"
+          defaultValue={status.stage_key ?? ""}
+          title="Papel da etapa (usado pelas automações de tarefas)"
+          className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+        >
+          <option value="">Sem papel especial</option>
+          <option value="ENGENHARIA">Engenharia</option>
+          <option value="PCP">PCP</option>
+        </select>
       ) : (
         <span />
       )}

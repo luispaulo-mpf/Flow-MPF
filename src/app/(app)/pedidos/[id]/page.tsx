@@ -42,7 +42,9 @@ export default async function OrderDetailPage({
   ] = await Promise.all([
     supabase
       .from("order_items")
-      .select("id, erp_item_code, description, quantity, unit, status_id, statuses(name, color)")
+      .select(
+        "id, erp_item_code, description, quantity, unit, status_id, engineering_review, delivery_date, statuses(name, color)",
+      )
       .eq("order_id", id)
       .order("created_at", { ascending: true }),
     listStatuses(user.companyId, "ORDER"),
@@ -50,7 +52,9 @@ export default async function OrderDetailPage({
     listActiveUsers(user.companyId),
     supabase
       .from("tasks")
-      .select("id, title, status, priority, due_date, responsible_user_id, users:responsible_user_id(name)")
+      .select(
+        "id, title, description, status, priority, due_date, created_at, completed_at, responsible_user_id, created_by, users:responsible_user_id(name)",
+      )
       .eq("order_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -72,6 +76,8 @@ export default async function OrderDetailPage({
   ])
 
   const canEdit = canEditOrder(user.role, order.responsible_user_id, user.id)
+  const currentStatus = statuses.find((s) => s.id === order.status_id)
+  const isEngenhariaStage = currentStatus?.stage_key === "ENGENHARIA"
 
   const attachmentsWithUrls = await Promise.all(
     (attachments ?? []).map(async (att) => {
@@ -93,6 +99,7 @@ export default async function OrderDetailPage({
             items={items ?? []}
             itemStatuses={itemStatuses}
             canEdit={canEdit}
+            showEngineeringReview={isEngenhariaStage}
           />
 
           <OrderTasks orderId={order.id} tasks={tasks ?? []} users={users} />

@@ -23,14 +23,40 @@ export function isOrderLate(deliveryDate: string | null, isFinalStatus: boolean)
   return date.getTime() < startOfToday().getTime()
 }
 
-export function isOrderAtRisk(deliveryDate: string | null, isFinalStatus: boolean): boolean {
+export function isOrderAtRisk(
+  deliveryDate: string | null,
+  isFinalStatus: boolean,
+  riskWindowDays: number = 2,
+): boolean {
   if (isFinalStatus) return false
   const date = parseDateOnly(deliveryDate)
   if (!date) return false
   const today = startOfToday()
   const limit = new Date(today)
-  limit.setDate(limit.getDate() + 2)
+  limit.setDate(limit.getDate() + riskWindowDays)
   return date.getTime() <= limit.getTime()
+}
+
+/**
+ * order_items has no dedicated "finished" flag exposed in Configurações
+ * (the "Final" checkbox is order-scope only), so — same convention as
+ * isBlockedStatusName below — an item status counts as finished when its
+ * name says so (e.g. "FINALIZADO").
+ */
+export function isItemFinishedStatusName(name: string | null | undefined): boolean {
+  if (!name) return false
+  const normalized = name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+  return normalized.includes("FINALIZ") || normalized.includes("CONCLU")
+}
+
+export function isItemLate(deliveryDate: string | null, isFinishedStatus: boolean): boolean {
+  if (isFinishedStatus) return false
+  const date = parseDateOnly(deliveryDate)
+  if (!date) return false
+  return date.getTime() < startOfToday().getTime()
 }
 
 export function isTaskLate(dueDate: string | null, status: string): boolean {

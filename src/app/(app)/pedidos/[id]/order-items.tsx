@@ -13,7 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { addOrderItem, deleteOrderItem, updateOrderItemStatus, type ActionResult } from "@/actions/orders"
+import {
+  addOrderItem,
+  deleteOrderItem,
+  updateOrderItemStatus,
+  updateItemEngineeringReview,
+  type ActionResult,
+} from "@/actions/orders"
 import { Plus, Trash2 } from "lucide-react"
 
 type ItemStatus = { id: string; name: string; color: string }
@@ -25,10 +31,69 @@ type Item = {
   quantity: number
   unit: string | null
   status_id: string | null
+  engineering_review: string | null
+  delivery_date: string | null
   statuses: { name: string; color: string } | null
 }
 
 const initialState: ActionResult = { error: null }
+
+function formatDate(value: string | null) {
+  if (!value) return "—"
+  const [y, m, d] = value.split("-")
+  return `${d}/${m}/${y}`
+}
+
+const ENGINEERING_REVIEW_LABELS: Record<string, string> = {
+  REVISADO: "Revisado",
+  NECESSITA_PROJETO: "Necessita projeto",
+  NECESSITA_REVISAO: "Necessita revisão",
+}
+
+function EngineeringReviewSelect({
+  orderId,
+  item,
+  canEdit,
+}: {
+  orderId: string
+  item: Item
+  canEdit: boolean
+}) {
+  const [, startTransition] = useTransition()
+
+  if (!canEdit) {
+    return (
+      <span className="text-sm text-slate-600">
+        {item.engineering_review ? ENGINEERING_REVIEW_LABELS[item.engineering_review] : "—"}
+      </span>
+    )
+  }
+
+  return (
+    <select
+      defaultValue={item.engineering_review ?? ""}
+      onChange={(e) => {
+        const value = e.target.value
+        if (!value) return
+        startTransition(async () => {
+          try {
+            await updateItemEngineeringReview(orderId, item.id, value)
+          } catch {
+            toast.error("Não foi possível salvar a revisão de engenharia.")
+          }
+        })
+      }}
+      className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+    >
+      <option value="" disabled>
+        Selecione
+      </option>
+      <option value="REVISADO">Revisado</option>
+      <option value="NECESSITA_PROJETO">Necessita projeto</option>
+      <option value="NECESSITA_REVISAO">Necessita revisão</option>
+    </select>
+  )
+}
 
 function ItemStatusSelect({
   orderId,
@@ -86,11 +151,13 @@ export function OrderItems({
   items,
   itemStatuses,
   canEdit,
+  showEngineeringReview,
 }: {
   orderId: string
   items: Item[]
   itemStatuses: ItemStatus[]
   canEdit: boolean
+  showEngineeringReview: boolean
 }) {
   const [showForm, setShowForm] = useState(false)
   const [state, formAction, pending] = useActionState(addOrderItem, initialState)
@@ -136,17 +203,18 @@ export function OrderItems({
               fd.set("order_id", orderId)
               formAction(fd)
             }}
-            className="mx-4 flex flex-col gap-2 rounded-md border border-slate-200 p-3 sm:grid sm:grid-cols-[100px_1fr_90px_80px_auto] sm:items-center sm:gap-2 sm:space-y-0"
+            className="mx-4 flex flex-col gap-2 rounded-md border border-slate-200 p-3 sm:grid sm:grid-cols-[100px_1fr_90px_80px_140px_auto] sm:items-center sm:gap-2 sm:space-y-0"
           >
             <Input name="code" placeholder="Código" />
             <Input name="description" placeholder="Descrição" required />
             <Input name="quantity" type="number" step="0.01" min="0" placeholder="Qtd." defaultValue="1" />
             <Input name="unit" placeholder="Un." defaultValue="UN" />
+            <Input name="delivery_date" type="date" title="Prazo do item (opcional)" />
             <Button type="submit" size="sm" disabled={pending}>
               {pending ? "Salvando..." : "Salvar"}
             </Button>
             {state.error ? (
-              <p className="text-sm text-destructive sm:col-span-5">{state.error}</p>
+              <p className="text-sm text-destructive sm:col-span-6">{state.error}</p>
             ) : null}
           </form>
         ) : null}
@@ -158,7 +226,9 @@ export function OrderItems({
                 <TableHead>Descrição</TableHead>
                 <TableHead>Qtd.</TableHead>
                 <TableHead>Un.</TableHead>
+                <TableHead>Prazo</TableHead>
                 <TableHead>Status</TableHead>
+                {showEngineeringReview ? <TableHead>Engenharia</TableHead> : null}
                 {canEdit ? <TableHead className="w-10" /> : null}
               </TableRow>
             </TableHeader>
@@ -169,6 +239,7 @@ export function OrderItems({
                   <TableCell>{item.description}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{item.unit ?? "—"}</TableCell>
+                  <TableCell className="text-slate-500">{formatDate(item.delivery_date)}</TableCell>
                   <TableCell>
                     <ItemStatusSelect
                       orderId={orderId}
@@ -177,6 +248,11 @@ export function OrderItems({
                       canEdit={canEdit}
                     />
                   </TableCell>
+                  {showEngineeringReview ? (
+                    <TableCell>
+                      <EngineeringReviewSelect orderId={orderId} item={item} canEdit={canEdit} />
+                    </TableCell>
+                  ) : null}
                   {canEdit ? (
                     <TableCell>
                       <Button
@@ -194,7 +270,10 @@ export function OrderItems({
               ))}
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canEdit ? 6 : 5} className="py-6 text-center text-sm text-slate-500">
+                  <TableCell
+                    colSpan={6 + (showEngineeringReview ? 1 : 0) + (canEdit ? 1 : 0)}
+                    className="py-6 text-center text-sm text-slate-500"
+                  >
                     Nenhum item cadastrado.
                   </TableCell>
                 </TableRow>

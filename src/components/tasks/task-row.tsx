@@ -17,6 +17,8 @@ export type TaskRowData = {
   status: string
   priority: string
   due_date: string | null
+  created_at: string
+  completed_at: string | null
   responsible_user_id: string | null
   order_id: string | null
   created_by: string

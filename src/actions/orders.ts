@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server"
 import { requireUser, canEditOrder, canManageOperations } from "@/lib/auth"
 import { logActivity } from "@/lib/activity-log"
 import { getDefaultStatusId } from "@/lib/queries"
+import { recordOrderItemStatusHistory, recordOrderStatusHistory } from "@/lib/status-history"
+import { runPcpAutomation, runEngenhariaAutomation } from "@/lib/automations"
 import { PRIORITIES } from "@/types/domain"
 
 export type ActionResult = { error: string | null }
@@ -43,7 +45,7 @@ export async function createOrder(_prev: ActionResult, formData: FormData): Prom
       status_id: statusId,
       notes,
     })
-    .select("id")
+    .select("id, status_id")
     .single()
 
   if (error) {
@@ -51,6 +53,21 @@ export async function createOrder(_prev: ActionResult, formData: FormData): Prom
       return { error: "Já existe um pedido com esse número nesta empresa." }
     }
     return { error: "Não foi possível criar o pedido." }
+  }
+
+  if (order.status_id) {
+    await recordOrderStatusHistory(supabase, {
+      companyId: user.companyId,
+      orderId: order.id,
+      statusId: order.status_id,
+    })
+    await runPcpAutomation(supabase, {
+      companyId: user.companyId,
+      orderId: order.id,
+      newStatusId: order.status_id,
+      previousStatusId: null,
+      createdByUserId: user.id,
+    })
   }
 
   const itemCodes = formData.getAll("item_code").map(String)
@@ -72,7 +89,16 @@ export async function createOrder(_prev: ActionResult, formData: FormData): Prom
     .filter((item) => item.description.length > 0)
 
   if (items.length > 0) {
-    await supabase.from("order_items").insert(items)
+    const { data: insertedItems } = await supabase.from("order_items").insert(items).select("id")
+    if (defaultItemStatusId) {
+      for (const item of insertedItems ?? []) {
+        await recordOrderItemStatusHistory(supabase, {
+          companyId: user.companyId,
+          orderItemId: item.id,
+          statusId: defaultItemStatusId,
+        })
+      }
+    }
   }
 
   await logActivity(supabase, {
@@ -93,7 +119,7 @@ async function assertCanEditOrder(orderId: string) {
   const supabase = await createClient()
   const { data: order } = await supabase
     .from("orders")
-    .select("id, company_id, responsible_user_id, erp_order_number")
+    .select("id, company_id, responsible_user_id, erp_order_number, status_id")
     .eq("id", orderId)
     .single()
 
@@ -106,6 +132,7 @@ async function assertCanEditOrder(orderId: string) {
 
 export async function updateOrderStatus(orderId: string, statusId: string) {
   const { user, supabase, order } = await assertCanEditOrder(orderId)
+  const previousStatusId = order.status_id
 
   const { data: status } = await supabase
     .from("statuses")
@@ -115,6 +142,17 @@ export async function updateOrderStatus(orderId: string, statusId: string) {
 
   const { error } = await supabase.from("orders").update({ status_id: statusId }).eq("id", orderId)
   if (error) throw new Error("Não foi possível atualizar o status.")
+
+  if (statusId !== previousStatusId) {
+    await recordOrderStatusHistory(supabase, { companyId: user.companyId, orderId, statusId })
+    await runPcpAutomation(supabase, {
+      companyId: user.companyId,
+      orderId,
+      newStatusId: statusId,
+      previousStatusId,
+      createdByUserId: user.id,
+    })
+  }
 
   await logActivity(supabase, {
     companyId: user.companyId,
@@ -214,21 +252,35 @@ export async function addOrderItem(_prev: ActionResult, formData: FormData): Pro
     const code = String(formData.get("code") ?? "").trim() || null
     const quantity = Number(formData.get("quantity")) || 0
     const unit = String(formData.get("unit") ?? "").trim() || null
+    const deliveryDate = String(formData.get("delivery_date") ?? "") || null
 
     if (!description) return { error: "Informe a descrição do item." }
 
     const defaultItemStatusId = await getDefaultStatusId(user.companyId, "ITEM")
 
-    const { error } = await supabase.from("order_items").insert({
-      order_id: orderId,
-      erp_item_code: code,
-      description,
-      quantity,
-      unit,
-      status_id: defaultItemStatusId,
-    })
+    const { data: insertedItem, error } = await supabase
+      .from("order_items")
+      .insert({
+        order_id: orderId,
+        erp_item_code: code,
+        description,
+        quantity,
+        unit,
+        delivery_date: deliveryDate,
+        status_id: defaultItemStatusId,
+      })
+      .select("id")
+      .single()
 
-    if (error) return { error: "Não foi possível adicionar o item." }
+    if (error || !insertedItem) return { error: "Não foi possível adicionar o item." }
+
+    if (defaultItemStatusId) {
+      await recordOrderItemStatusHistory(supabase, {
+        companyId: user.companyId,
+        orderItemId: insertedItem.id,
+        statusId: defaultItemStatusId,
+      })
+    }
 
     await logActivity(supabase, {
       companyId: user.companyId,
@@ -250,7 +302,7 @@ export async function updateOrderItemStatus(orderId: string, itemId: string, sta
 
   const [{ data: status }, { data: item }] = await Promise.all([
     supabase.from("statuses").select("name").eq("id", statusId).single(),
-    supabase.from("order_items").select("description").eq("id", itemId).single(),
+    supabase.from("order_items").select("description, status_id").eq("id", itemId).single(),
   ])
 
   const { error } = await supabase
@@ -258,6 +310,14 @@ export async function updateOrderItemStatus(orderId: string, itemId: string, sta
     .update({ status_id: statusId })
     .eq("id", itemId)
   if (error) throw new Error("Não foi possível atualizar o status do item.")
+
+  if (item && statusId !== item.status_id) {
+    await recordOrderItemStatusHistory(supabase, {
+      companyId: user.companyId,
+      orderItemId: itemId,
+      statusId,
+    })
+  }
 
   await logActivity(supabase, {
     companyId: user.companyId,
@@ -302,4 +362,47 @@ export async function updateOrderNotes(orderId: string, notes: string) {
   })
 
   revalidatePath(`/pedidos/${orderId}`)
+}
+
+const ENGINEERING_REVIEW_VALUES = ["REVISADO", "NECESSITA_PROJETO", "NECESSITA_REVISAO"] as const
+
+export async function updateItemEngineeringReview(orderId: string, itemId: string, value: string) {
+  if (!(ENGINEERING_REVIEW_VALUES as readonly string[]).includes(value)) {
+    throw new Error("Opção de revisão inválida.")
+  }
+
+  const { user, supabase, order } = await assertCanEditOrder(orderId)
+
+  const { data: item } = await supabase
+    .from("order_items")
+    .select("description")
+    .eq("id", itemId)
+    .single()
+
+  const { error } = await supabase
+    .from("order_items")
+    .update({ engineering_review: value })
+    .eq("id", itemId)
+  if (error) throw new Error("Não foi possível salvar a revisão de engenharia.")
+
+  await runEngenhariaAutomation(supabase, {
+    companyId: user.companyId,
+    orderId,
+    orderErpNumber: order.erp_order_number,
+    itemId,
+    itemDescription: item?.description ?? itemId,
+    review: value as (typeof ENGINEERING_REVIEW_VALUES)[number],
+    createdByUserId: user.id,
+  })
+
+  await logActivity(supabase, {
+    companyId: user.companyId,
+    userId: user.id,
+    orderId,
+    action: "Pedido atualizado",
+    description: `Revisão de engenharia do item "${item?.description ?? itemId}" do pedido ${order.erp_order_number} definida como "${value}".`,
+  })
+
+  revalidatePath(`/pedidos/${orderId}`)
+  revalidatePath("/tarefas")
 }

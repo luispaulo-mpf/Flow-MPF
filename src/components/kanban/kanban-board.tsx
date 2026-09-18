@@ -14,6 +14,8 @@ import {
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { toast } from "sonner"
 import { updateOrderStatus } from "@/actions/orders"
+import { Input } from "@/components/ui/input"
+import { Search } from "lucide-react"
 import { OrderCard } from "./order-card"
 import type { Role } from "@/types/domain"
 
@@ -27,6 +29,7 @@ export type KanbanOrder = {
   responsibleUserId: string | null
   responsibleName: string | null
   itemCount: number
+  awaitingMaterialCount: number
 }
 
 type Status = {
@@ -123,20 +126,31 @@ export function KanbanBoard({
 }) {
   const [localOrders, setLocalOrders] = useState(orders)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
   const [, startTransition] = useTransition()
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
+  const visibleOrders = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    if (!term) return localOrders
+    return localOrders.filter(
+      (o) =>
+        o.erpOrderNumber.toLowerCase().includes(term) ||
+        o.customerName.toLowerCase().includes(term),
+    )
+  }, [localOrders, search])
+
   const byStatus = useMemo(() => {
     const map = new Map<string, KanbanOrder[]>()
     for (const status of statuses) map.set(status.id, [])
-    for (const order of localOrders) {
+    for (const order of visibleOrders) {
       if (order.statusId && map.has(order.statusId)) {
         map.get(order.statusId)!.push(order)
       }
     }
     return map
-  }, [statuses, localOrders])
+  }, [statuses, visibleOrders])
 
   const activeOrder = activeId ? localOrders.find((o) => o.id === activeId) ?? null : null
   const activeStatus = activeOrder
@@ -178,28 +192,39 @@ export function KanbanBoard({
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex flex-1 gap-3 overflow-x-auto pb-4">
-        {statuses.map((status) => (
-          <Column
-            key={status.id}
-            status={status}
-            orders={byStatus.get(status.id) ?? []}
-            role={role}
-            userId={currentUserId}
-          />
-        ))}
+    <div className="flex flex-1 flex-col gap-3 overflow-hidden">
+      <div className="relative w-full max-w-xs">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por pedido ou cliente..."
+          className="pl-8"
+        />
       </div>
-      <DragOverlay>
-        {activeOrder ? (
-          <OrderCard order={activeOrder} isFinalStatus={activeStatus?.is_final ?? false} dragging />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex flex-1 gap-3 overflow-x-auto pb-4">
+          {statuses.map((status) => (
+            <Column
+              key={status.id}
+              status={status}
+              orders={byStatus.get(status.id) ?? []}
+              role={role}
+              userId={currentUserId}
+            />
+          ))}
+        </div>
+        <DragOverlay>
+          {activeOrder ? (
+            <OrderCard order={activeOrder} isFinalStatus={activeStatus?.is_final ?? false} dragging />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   )
 }

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatusList } from "./status-list"
 import { NewStatusForm } from "./new-status-form"
+import { CompanySettingsForm } from "./company-settings-form"
 
 export default async function ConfiguracoesPage() {
   const user = await requireUser()
@@ -12,7 +13,11 @@ export default async function ConfiguracoesPage() {
 
   const supabase = await createClient()
   const [{ data: company }, orderStatuses, itemStatuses] = await Promise.all([
-    supabase.from("companies").select("id, name").eq("id", user.companyId).single(),
+    supabase
+      .from("companies")
+      .select("id, name, production_capacity_monthly, risk_window_days")
+      .eq("id", user.companyId)
+      .single(),
     listStatuses(user.companyId, "ORDER"),
     listStatuses(user.companyId, "ITEM"),
   ])
@@ -23,6 +28,22 @@ export default async function ConfiguracoesPage() {
         <h1 className="text-xl font-semibold tracking-tight text-slate-900">Configurações</h1>
         <p className="text-sm text-slate-500">{company?.name}</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Capacidade e prazos</CardTitle>
+          <CardDescription>
+            Usados nos indicadores do painel: carga de produção e alerta de pedidos com prazo
+            próximo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CompanySettingsForm
+            productionCapacityMonthly={company?.production_capacity_monthly ?? 500}
+            riskWindowDays={company?.risk_window_days ?? 2}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

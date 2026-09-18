@@ -8,19 +8,69 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { createTask, updateTaskStatus, type ActionResult } from "@/actions/tasks"
 import { PriorityBadge } from "@/components/domain/priority-badge"
+import { TaskEditDialog } from "@/components/tasks/task-edit-dialog"
+import type { TaskRowData } from "@/components/tasks/task-row"
 import { Plus } from "lucide-react"
 
 type Task = {
   id: string
   title: string
+  description: string | null
   status: string
   priority: string
   due_date: string | null
+  created_at: string
+  completed_at: string | null
   responsible_user_id: string | null
+  created_by: string
   users: { name: string } | null
 }
 
 const initialState: ActionResult = { error: null }
+
+function TaskListItem({
+  task,
+  orderId,
+  users,
+}: {
+  task: Task
+  orderId: string
+  users: { id: string; name: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [, startTransition] = useTransition()
+
+  function toggleDone() {
+    startTransition(async () => {
+      try {
+        await updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE")
+      } catch {
+        toast.error("Não foi possível atualizar a tarefa.")
+      }
+    })
+  }
+
+  const taskRowData: TaskRowData = { ...task, order_id: orderId, orders: null }
+
+  return (
+    <li className="flex items-center gap-3 py-2">
+      <Checkbox checked={task.status === "DONE"} onCheckedChange={toggleDone} />
+      <button type="button" onClick={() => setOpen(true)} className="min-w-0 flex-1 text-left">
+        <p
+          className={`truncate text-sm ${task.status === "DONE" ? "text-slate-400 line-through" : "text-slate-800"}`}
+        >
+          {task.title}
+        </p>
+        <p className="text-xs text-slate-400">
+          {task.users?.name ?? "Sem responsável"}
+          {task.due_date ? ` · ${task.due_date.split("-").reverse().join("/")}` : ""}
+        </p>
+      </button>
+      <PriorityBadge priority={task.priority} />
+      <TaskEditDialog task={taskRowData} users={users} open={open} onOpenChange={setOpen} canEdit />
+    </li>
+  )
+}
 
 export function OrderTasks({
   orderId,
@@ -33,17 +83,6 @@ export function OrderTasks({
 }) {
   const [showForm, setShowForm] = useState(false)
   const [state, formAction, pending] = useActionState(createTask, initialState)
-  const [, startTransition] = useTransition()
-
-  function toggleDone(task: Task) {
-    startTransition(async () => {
-      try {
-        await updateTaskStatus(task.id, task.status === "DONE" ? "TODO" : "DONE")
-      } catch {
-        toast.error("Não foi possível atualizar a tarefa.")
-      }
-    })
-  }
 
   return (
     <Card>
@@ -105,24 +144,7 @@ export function OrderTasks({
         ) : (
           <ul className="flex flex-col divide-y divide-slate-100">
             {tasks.map((task) => (
-              <li key={task.id} className="flex items-center gap-3 py-2">
-                <Checkbox
-                  checked={task.status === "DONE"}
-                  onCheckedChange={() => toggleDone(task)}
-                />
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={`truncate text-sm ${task.status === "DONE" ? "text-slate-400 line-through" : "text-slate-800"}`}
-                  >
-                    {task.title}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {task.users?.name ?? "Sem responsável"}
-                    {task.due_date ? ` · ${task.due_date.split("-").reverse().join("/")}` : ""}
-                  </p>
-                </div>
-                <PriorityBadge priority={task.priority} />
-              </li>
+              <TaskListItem key={task.id} task={task} orderId={orderId} users={users} />
             ))}
           </ul>
         )}

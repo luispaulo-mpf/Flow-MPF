@@ -29,7 +29,7 @@ export default async function TarefasPage({
     .limit(200)
 
   const baseSelect =
-    "id, title, description, status, priority, due_date, responsible_user_id, order_id, created_by, orders(erp_order_number), users:responsible_user_id(name)"
+    "id, title, description, status, priority, due_date, created_at, completed_at, responsible_user_id, order_id, created_by, orders(erp_order_number), users:responsible_user_id(name)"
 
   let tasks: TaskRowData[] = []
 

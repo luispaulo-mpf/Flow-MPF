@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -138,18 +140,24 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          production_capacity_monthly: number
+          risk_window_days: number
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          production_capacity_monthly?: number
+          risk_window_days?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          production_capacity_monthly?: number
+          risk_window_days?: number
           updated_at?: string
         }
         Relationships: []
@@ -212,10 +220,58 @@ export type Database = {
           },
         ]
       }
+      order_item_status_history: {
+        Row: {
+          company_id: string
+          entered_at: string
+          id: string
+          order_item_id: string
+          status_id: string
+        }
+        Insert: {
+          company_id: string
+          entered_at?: string
+          id?: string
+          order_item_id: string
+          status_id: string
+        }
+        Update: {
+          company_id?: string
+          entered_at?: string
+          id?: string
+          order_item_id?: string
+          status_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_item_status_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_item_status_history_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_item_status_history_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "statuses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
+          delivery_date: string | null
           description: string
+          engineering_review: string | null
           erp_item_code: string | null
           id: string
           order_id: string
@@ -226,7 +282,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          delivery_date?: string | null
           description: string
+          engineering_review?: string | null
           erp_item_code?: string | null
           id?: string
           order_id: string
@@ -237,7 +295,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          delivery_date?: string | null
           description?: string
+          engineering_review?: string | null
           erp_item_code?: string | null
           id?: string
           order_id?: string
@@ -256,6 +316,52 @@ export type Database = {
           },
           {
             foreignKeyName: "order_items_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "statuses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_status_history: {
+        Row: {
+          company_id: string
+          entered_at: string
+          id: string
+          order_id: string
+          status_id: string
+        }
+        Insert: {
+          company_id: string
+          entered_at?: string
+          id?: string
+          order_id: string
+          status_id: string
+        }
+        Update: {
+          company_id?: string
+          entered_at?: string
+          id?: string
+          order_id?: string
+          status_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_status_history_status_id_fkey"
             columns: ["status_id"]
             isOneToOne: false
             referencedRelation: "statuses"
@@ -344,6 +450,7 @@ export type Database = {
           name: string
           position: number
           scope: string
+          stage_key: string | null
           updated_at: string
         }
         Insert: {
@@ -356,6 +463,7 @@ export type Database = {
           name: string
           position?: number
           scope?: string
+          stage_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -368,6 +476,7 @@ export type Database = {
           name?: string
           position?: number
           scope?: string
+          stage_key?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -390,6 +499,7 @@ export type Database = {
           due_date: string | null
           id: string
           order_id: string | null
+          order_item_id: string | null
           priority: string
           responsible_user_id: string | null
           status: string
@@ -405,6 +515,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           order_id?: string | null
+          order_item_id?: string | null
           priority?: string
           responsible_user_id?: string | null
           status?: string
@@ -420,6 +531,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           order_id?: string | null
+          order_item_id?: string | null
           priority?: string
           responsible_user_id?: string | null
           status?: string
@@ -446,6 +558,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
             referencedColumns: ["id"]
           },
           {
@@ -503,8 +622,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      current_company_id: { Args: Record<PropertyKey, never>; Returns: string }
-      current_role: { Args: Record<PropertyKey, never>; Returns: string }
+      current_company_id: { Args: never; Returns: string }
+      current_role: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
@@ -515,18 +634,125 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database["public"]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"]),
-> = (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-  Row: infer R
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
 }
-  ? R
-  : never
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
-export type TablesInsert<DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]> =
-  DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends { Insert: infer I } ? I : never
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
-export type TablesUpdate<DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]> =
-  DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends { Update: infer U } ? U : never
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

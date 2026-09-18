@@ -36,6 +36,13 @@ export function OrderCard({
         <Package className="size-3.5" />
         {order.itemCount} {order.itemCount === 1 ? "item" : "itens"}
       </div>
+      {order.awaitingMaterialCount > 0 ? (
+        <p className="text-xs font-medium text-amber-600">
+          ⚠ {order.awaitingMaterialCount === order.itemCount
+            ? `Todos os ${order.itemCount} itens aguardando matéria prima`
+            : `${order.awaitingMaterialCount} de ${order.itemCount} itens aguardando matéria prima`}
+        </p>
+      ) : null}
       <div className="flex items-center justify-between gap-2">
         <DeliveryDate date={order.deliveryDate} isFinalStatus={isFinalStatus} />
         <span className="truncate text-xs text-slate-500">

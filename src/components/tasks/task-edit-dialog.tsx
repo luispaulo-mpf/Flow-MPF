@@ -17,6 +17,11 @@ import type { TaskRowData } from "./task-row"
 
 const initialState: ActionResult = { error: null }
 
+function formatDateTime(value: string | null) {
+  if (!value) return null
+  return new Date(value).toLocaleString("pt-BR")
+}
+
 export function TaskEditDialog({
   task,
   users,
@@ -117,6 +122,10 @@ export function TaskEditDialog({
                 disabled={!canEdit}
               />
             </div>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+            <span>Criado em: {formatDateTime(task.created_at)}</span>
+            {task.completed_at ? <span>Concluído em: {formatDateTime(task.completed_at)}</span> : null}
           </div>
           {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
           {canEdit ? (

@@ -3,7 +3,10 @@ export type ImportItemRow = {
   description: string
   quantity: number
   unit: string | null
+  deliveryDate?: string | null
 }
+
+export type ImportReportType = "SPREADSHEET" | "PRODUTOS_POR_DATA_ENTREGA" | "PRODUTOS_POR_PEDIDO"
 
 export type ImportOrderGroup = {
   erpOrderNumber: string
@@ -18,6 +21,7 @@ export type ImportOrderGroup = {
 
 export type ImportPreview = {
   fileName: string
+  reportType: ImportReportType
   orders: ImportOrderGroup[]
   rowErrors: string[]
 }
