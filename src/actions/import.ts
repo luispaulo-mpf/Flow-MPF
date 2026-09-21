@@ -39,8 +39,10 @@ export async function previewImport(
     let text: string
     try {
       text = await extractPdfText(buffer)
-    } catch {
-      return { preview: null, error: "Não foi possível ler o PDF. Verifique o arquivo." }
+    } catch (e) {
+      // TEMP diagnostics again: DOMMatrix fix wasn't the whole story in prod.
+      const detail = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e)
+      return { preview: null, error: `Não foi possível ler o PDF. [DEBUG] ${detail}` }
     }
 
     let reportType: ImportReportType
