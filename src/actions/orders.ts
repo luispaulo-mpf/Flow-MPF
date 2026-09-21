@@ -375,7 +375,7 @@ export async function updateItemEngineeringReview(orderId: string, itemId: strin
 
   const { data: item } = await supabase
     .from("order_items")
-    .select("description")
+    .select("description, erp_item_code")
     .eq("id", itemId)
     .single()
 
@@ -390,6 +390,7 @@ export async function updateItemEngineeringReview(orderId: string, itemId: strin
     orderId,
     orderErpNumber: order.erp_order_number,
     itemId,
+    itemCode: item?.erp_item_code ?? null,
     itemDescription: item?.description ?? itemId,
     review: value as (typeof ENGINEERING_REVIEW_VALUES)[number],
     createdByUserId: user.id,

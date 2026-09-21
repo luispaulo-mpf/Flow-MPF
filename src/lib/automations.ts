@@ -10,7 +10,7 @@ const ENGENHARIA_TASKS: Record<"NECESSITA_PROJETO" | "NECESSITA_REVISAO", TaskTe
   NECESSITA_PROJETO: [
     { title: "Desenvolvimento de Projeto", email: "engenharia@mpfhidraulicos.com.br" },
     { title: "Ficha Técnica", email: "engenharia@mpfhidraulicos.com.br" },
-    { title: "Conferência e Aprovação", email: "zelia@mpfhidraulicos.com.br" },
+    { title: "Conferência e Aprovação", email: "compras@mpfhidraulicos.com.br" },
   ],
   NECESSITA_REVISAO: [
     { title: "Revisão do Projeto", email: "engenharia@mpfhidraulicos.com.br" },
@@ -102,6 +102,7 @@ export async function runEngenhariaAutomation(
     orderId: string
     orderErpNumber: string
     itemId: string
+    itemCode: string | null
     itemDescription: string
     review: "REVISADO" | "NECESSITA_PROJETO" | "NECESSITA_REVISAO"
     createdByUserId: string
@@ -109,13 +110,14 @@ export async function runEngenhariaAutomation(
 ) {
   if (params.review === "REVISADO") return
 
+  const itemLabel = params.itemCode ? `Item ${params.itemCode}` : params.itemDescription
   const templates = ENGENHARIA_TASKS[params.review]
   for (const template of templates) {
     await createTaskIfMissing(supabase, {
       companyId: params.companyId,
       orderId: params.orderId,
       orderItemId: params.itemId,
-      template,
+      template: { title: `${template.title} — ${itemLabel}`, email: template.email },
       createdByUserId: params.createdByUserId,
     })
   }
