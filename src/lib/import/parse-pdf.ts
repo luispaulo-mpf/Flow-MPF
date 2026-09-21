@@ -29,6 +29,16 @@ export function isPedidosReportText(text: string): boolean {
 }
 
 export async function extractPdfText(buffer: ArrayBuffer): Promise<string> {
+  // pdfjs-dist (used internally by pdf-parse) expects the browser's
+  // DOMMatrix global, which Node's serverless runtime doesn't provide.
+  // Works locally only by accident of module resolution; polyfill it
+  // explicitly so it also works in Vercel's production runtime.
+  if (typeof globalThis.DOMMatrix === "undefined") {
+    const { default: DOMMatrixPolyfill } = await import("dommatrix")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(globalThis as any).DOMMatrix = DOMMatrixPolyfill
+  }
+
   const { PDFParse } = await import("pdf-parse")
   const parser = new PDFParse({ data: Buffer.from(buffer) })
   const result = await parser.getText()
