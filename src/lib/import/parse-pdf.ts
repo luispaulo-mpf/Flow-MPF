@@ -1,4 +1,3 @@
-import { PDFParse } from "pdf-parse"
 import { parseNumber } from "./parse"
 import type { ImportOrderGroup } from "./types"
 
@@ -30,6 +29,7 @@ export function isPedidosReportText(text: string): boolean {
 }
 
 export async function extractPdfText(buffer: ArrayBuffer): Promise<string> {
+  const { PDFParse } = await import("pdf-parse")
   const parser = new PDFParse({ data: Buffer.from(buffer) })
   const result = await parser.getText()
   return result.text

@@ -39,8 +39,11 @@ export async function previewImport(
     let text: string
     try {
       text = await extractPdfText(buffer)
-    } catch {
-      return { preview: null, error: "Não foi possível ler o PDF. Verifique o arquivo." }
+    } catch (e) {
+      // TEMP diagnostics: surface the real error to find a production-only
+      // PDF-parsing failure we can't otherwise see (no server log access).
+      const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+      return { preview: null, error: `Não foi possível ler o PDF. [DEBUG] ${detail}` }
     }
 
     let reportType: ImportReportType
