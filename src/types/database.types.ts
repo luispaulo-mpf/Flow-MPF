@@ -137,6 +137,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          completed_archive_days: number
           created_at: string
           id: string
           name: string
@@ -145,6 +146,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          completed_archive_days?: number
           created_at?: string
           id?: string
           name: string
@@ -153,6 +155,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          completed_archive_days?: number
           created_at?: string
           id?: string
           name?: string
@@ -371,6 +374,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          archived_at: string | null
           company_id: string
           created_at: string
           customer_name: string
@@ -386,6 +390,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           company_id: string
           created_at?: string
           customer_name: string
@@ -401,6 +406,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           company_id?: string
           created_at?: string
           customer_name?: string

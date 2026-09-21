@@ -15,12 +15,16 @@ export async function updateCompanySettings(
 
   const capacity = Number(formData.get("production_capacity_monthly"))
   const riskWindowDays = Number(formData.get("risk_window_days"))
+  const completedArchiveDays = Number(formData.get("completed_archive_days"))
 
   if (!Number.isFinite(capacity) || capacity <= 0) {
     return { error: "Informe uma capacidade mensal válida." }
   }
   if (!Number.isFinite(riskWindowDays) || riskWindowDays < 0) {
     return { error: "Informe um número de dias válido." }
+  }
+  if (!Number.isFinite(completedArchiveDays) || completedArchiveDays <= 0) {
+    return { error: "Informe um número de dias válido para arquivamento." }
   }
 
   const supabase = await createClient()
@@ -29,6 +33,7 @@ export async function updateCompanySettings(
     .update({
       production_capacity_monthly: Math.round(capacity),
       risk_window_days: Math.round(riskWindowDays),
+      completed_archive_days: Math.round(completedArchiveDays),
     })
     .eq("id", user.companyId)
 

@@ -7,7 +7,7 @@ export async function logActivity(
   supabase: Client,
   params: {
     companyId: string
-    userId: string
+    userId: string | null
     orderId?: string | null
     taskId?: string | null
     action: string

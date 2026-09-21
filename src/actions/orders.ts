@@ -407,3 +407,39 @@ export async function updateItemEngineeringReview(orderId: string, itemId: strin
   revalidatePath(`/pedidos/${orderId}`)
   revalidatePath("/tarefas")
 }
+
+export async function unarchiveOrder(orderId: string) {
+  const user = await requireUser()
+  if (!canManageOperations(user.role)) {
+    throw new Error("Você não tem permissão para desarquivar pedidos.")
+  }
+
+  const supabase = await createClient()
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, erp_order_number, company_id")
+    .eq("id", orderId)
+    .eq("company_id", user.companyId)
+    .single()
+
+  if (!order) throw new Error("Pedido não encontrado.")
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ archived_at: null })
+    .eq("id", orderId)
+  if (error) throw new Error("Não foi possível desarquivar o pedido.")
+
+  await logActivity(supabase, {
+    companyId: user.companyId,
+    userId: user.id,
+    orderId,
+    action: "Pedido atualizado",
+    description: `Pedido ${order.erp_order_number} desarquivado manualmente.`,
+  })
+
+  revalidatePath("/pedidos")
+  revalidatePath(`/pedidos/${orderId}`)
+  revalidatePath("/kanban")
+  revalidatePath("/dashboard")
+}

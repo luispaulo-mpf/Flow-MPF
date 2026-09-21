@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation"
-import { requireUser, canEditOrder } from "@/lib/auth"
+import { requireUser, canEditOrder, canManageOperations } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { listActiveUsers, listStatuses } from "@/lib/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { OrderArchivedBanner } from "./order-archived-banner"
 import { OrderHeader } from "./order-header"
 import { OrderItems } from "./order-items"
 import { OrderTasks } from "./order-tasks"
@@ -22,7 +23,7 @@ export default async function OrderDetailPage({
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, erp_order_number, customer_name, issue_date, delivery_date, total_value, priority, status_id, responsible_user_id, notes, created_at",
+      "id, erp_order_number, customer_name, issue_date, delivery_date, total_value, priority, status_id, responsible_user_id, notes, created_at, archived_at",
     )
     .eq("id", id)
     .eq("company_id", user.companyId)
@@ -90,6 +91,13 @@ export default async function OrderDetailPage({
 
   return (
     <div className="flex flex-col gap-4">
+      {order.archived_at ? (
+        <OrderArchivedBanner
+          orderId={order.id}
+          archivedAt={order.archived_at}
+          canUnarchive={canManageOperations(user.role)}
+        />
+      ) : null}
       <OrderHeader order={order} statuses={statuses} users={users} canEdit={canEdit} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

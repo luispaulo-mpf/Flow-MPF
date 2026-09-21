@@ -11,9 +11,11 @@ const initialState: ActionResult = { error: null }
 export function CompanySettingsForm({
   productionCapacityMonthly,
   riskWindowDays,
+  completedArchiveDays,
 }: {
   productionCapacityMonthly: number
   riskWindowDays: number
+  completedArchiveDays: number
 }) {
   const [state, formAction, pending] = useActionState(updateCompanySettings, initialState)
 
@@ -36,6 +38,16 @@ export function CompanySettingsForm({
           type="number"
           min={0}
           defaultValue={riskWindowDays}
+          className="w-40"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs">Dias p/ arquivar pedido concluído</Label>
+        <Input
+          name="completed_archive_days"
+          type="number"
+          min={1}
+          defaultValue={completedArchiveDays}
           className="w-40"
         />
       </div>

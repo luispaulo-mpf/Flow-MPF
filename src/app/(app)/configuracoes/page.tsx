@@ -15,7 +15,7 @@ export default async function ConfiguracoesPage() {
   const [{ data: company }, orderStatuses, itemStatuses] = await Promise.all([
     supabase
       .from("companies")
-      .select("id, name, production_capacity_monthly, risk_window_days")
+      .select("id, name, production_capacity_monthly, risk_window_days, completed_archive_days")
       .eq("id", user.companyId)
       .single(),
     listStatuses(user.companyId, "ORDER"),
@@ -33,14 +33,15 @@ export default async function ConfiguracoesPage() {
         <CardHeader>
           <CardTitle className="text-base">Capacidade e prazos</CardTitle>
           <CardDescription>
-            Usados nos indicadores do painel: carga de produção e alerta de pedidos com prazo
-            próximo.
+            Usados nos indicadores do painel: carga de produção, alerta de pedidos com prazo
+            próximo, e quando pedidos concluídos saem do Kanban.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <CompanySettingsForm
             productionCapacityMonthly={company?.production_capacity_monthly ?? 500}
             riskWindowDays={company?.risk_window_days ?? 2}
+            completedArchiveDays={company?.completed_archive_days ?? 20}
           />
         </CardContent>
       </Card>

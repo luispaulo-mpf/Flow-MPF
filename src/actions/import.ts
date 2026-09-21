@@ -7,6 +7,7 @@ import { logActivity } from "@/lib/activity-log"
 import { mapHeaders, parseDate, parseNumber, parseSpreadsheet } from "@/lib/import/parse"
 import { extractPdfText, isPedidosReportText, parsePedidosReport } from "@/lib/import/parse-pdf"
 import { isPedidoPorItemReportText, parsePedidoPorItemReport } from "@/lib/import/parse-pedido-pdf"
+import { recordOrderItemStatusHistory, recordOrderStatusHistory } from "@/lib/status-history"
 import type { ImportOrderGroup, ImportPreview, ImportReportType } from "@/lib/import/types"
 
 export type PreviewState = { preview: ImportPreview | null; error: string | null }
@@ -228,6 +229,13 @@ export async function confirmImport(
         }
         orderId = created.id
         novos += 1
+        if (defaultStatus) {
+          await recordOrderStatusHistory(supabase, {
+            companyId: user.companyId,
+            orderId,
+            statusId: defaultStatus.id,
+          })
+        }
       } else {
         atualizados += 1
       }
@@ -258,15 +266,27 @@ export async function confirmImport(
               .eq("id", match.id)
           }
         } else {
-          await supabase.from("order_items").insert({
-            order_id: orderId,
-            erp_item_code: reportItem.itemCode,
-            description: reportItem.description,
-            quantity: reportItem.quantity,
-            unit: reportItem.unit,
-            delivery_date: reportItem.deliveryDate ?? null,
-            status_id: defaultItemStatus?.id ?? null,
-          })
+          const { data: insertedItem } = await supabase
+            .from("order_items")
+            .insert({
+              order_id: orderId,
+              erp_item_code: reportItem.itemCode,
+              description: reportItem.description,
+              quantity: reportItem.quantity,
+              unit: reportItem.unit,
+              delivery_date: reportItem.deliveryDate ?? null,
+              status_id: defaultItemStatus?.id ?? null,
+            })
+            .select("id")
+            .single()
+
+          if (insertedItem && defaultItemStatus) {
+            await recordOrderItemStatusHistory(supabase, {
+              companyId: user.companyId,
+              orderItemId: insertedItem.id,
+              statusId: defaultItemStatus.id,
+            })
+          }
         }
         itemsTouched += 1
       }
@@ -316,18 +336,39 @@ export async function confirmImport(
       continue
     }
 
+    if (group.kind === "NOVO" && defaultStatus) {
+      await recordOrderStatusHistory(supabase, {
+        companyId: user.companyId,
+        orderId: order.id,
+        statusId: defaultStatus.id,
+      })
+    }
+
     await supabase.from("order_items").delete().eq("order_id", order.id)
     if (group.items.length > 0) {
-      await supabase.from("order_items").insert(
-        group.items.map((item) => ({
-          order_id: order.id,
-          erp_item_code: item.itemCode,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit,
-          status_id: defaultItemStatus?.id ?? null,
-        })),
-      )
+      const { data: insertedItems } = await supabase
+        .from("order_items")
+        .insert(
+          group.items.map((item) => ({
+            order_id: order.id,
+            erp_item_code: item.itemCode,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            status_id: defaultItemStatus?.id ?? null,
+          })),
+        )
+        .select("id")
+
+      if (defaultItemStatus) {
+        for (const item of insertedItems ?? []) {
+          await recordOrderItemStatusHistory(supabase, {
+            companyId: user.companyId,
+            orderItemId: item.id,
+            statusId: defaultItemStatus.id,
+          })
+        }
+      }
     }
 
     await logActivity(supabase, {

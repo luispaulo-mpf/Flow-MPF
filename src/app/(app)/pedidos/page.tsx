@@ -29,6 +29,7 @@ type OrderRow = {
   priority: string
   status_id: string | null
   responsible_user_id: string | null
+  archived_at: string | null
   statuses: { name: string; color: string; is_final: boolean } | null
   users: { name: string } | null
 }
@@ -38,6 +39,12 @@ const SITUACAO_LABELS: Record<string, string> = {
   atrasado: "Atrasados",
   bloqueado: "Bloqueados",
   risco: "Em risco",
+  arquivados: "Arquivados",
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "—"
+  return new Date(value).toLocaleDateString("pt-BR")
 }
 
 export default async function PedidosPage({
@@ -57,13 +64,18 @@ export default async function PedidosPage({
     listActiveUsers(user.companyId),
   ])
 
+  const isArchivedView = situacao === "arquivados"
+  const isFilteredView = situacao && !isArchivedView
+
   let query = supabase
     .from("orders")
     .select(
-      "id, erp_order_number, customer_name, delivery_date, priority, status_id, responsible_user_id, statuses(name, color, is_final), users(name)",
-      { count: situacao ? undefined : "exact" },
+      "id, erp_order_number, customer_name, delivery_date, priority, status_id, responsible_user_id, archived_at, statuses(name, color, is_final), users(name)",
+      { count: isFilteredView ? undefined : "exact" },
     )
     .eq("company_id", user.companyId)
+
+  query = isArchivedView ? query.not("archived_at", "is", null) : query.is("archived_at", null)
 
   if (q) {
     query = query.or(`erp_order_number.ilike.%${q}%,customer_name.ilike.%${q}%`)
@@ -72,13 +84,17 @@ export default async function PedidosPage({
   if (params.responsavel) query = query.eq("responsible_user_id", params.responsavel)
   if (params.prioridade) query = query.eq("priority", params.prioridade)
 
-  query = query.order("delivery_date", { ascending: true, nullsFirst: false })
+  if (isArchivedView) {
+    query = query.order("archived_at", { ascending: false })
+  } else {
+    query = query.order("delivery_date", { ascending: true, nullsFirst: false })
+  }
 
   let orders: OrderRow[] = []
   let count = 0
   let totalPages = 1
 
-  if (situacao) {
+  if (isFilteredView) {
     const { data } = await query
     const matches = ((data ?? []) as unknown as OrderRow[]).filter((o) => {
       const isFinal = o.statuses?.is_final ?? false
@@ -111,15 +127,29 @@ export default async function PedidosPage({
           </h1>
           <p className="text-sm text-slate-500">{count} pedidos encontrados</p>
         </div>
-        {canCreate ? (
-          <Button asChild size="sm">
-            <Link href="/pedidos/novo">
-              <Plus className="size-4" />
-              Novo pedido
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href={isArchivedView ? "/pedidos" : "/pedidos?situacao=arquivados"}>
+              {isArchivedView ? "Voltar para pedidos ativos" : "Ver arquivados"}
             </Link>
           </Button>
-        ) : null}
+          {canCreate ? (
+            <Button asChild size="sm">
+              <Link href="/pedidos/novo">
+                <Plus className="size-4" />
+                Novo pedido
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
+      {isArchivedView ? (
+        <p className="text-sm text-slate-500">
+          Pedidos concluídos são arquivados automaticamente após o número de dias configurado em
+          Configurações. Nada é apagado — itens, tarefas, comentários e anexos continuam
+          acessíveis.
+        </p>
+      ) : null}
 
       <Card>
         <CardContent className="pt-4">
@@ -184,7 +214,11 @@ export default async function PedidosPage({
                   <TableHead>Status</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Prioridade</TableHead>
-                  <TableHead>Entrega</TableHead>
+                  {isArchivedView ? (
+                    <TableHead>Arquivado em</TableHead>
+                  ) : (
+                    <TableHead>Entrega</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -207,12 +241,18 @@ export default async function PedidosPage({
                     <TableCell>
                       <PriorityBadge priority={order.priority} />
                     </TableCell>
-                    <TableCell>
-                      <DeliveryDate
-                        date={order.delivery_date}
-                        isFinalStatus={order.statuses?.is_final ?? false}
-                      />
-                    </TableCell>
+                    {isArchivedView ? (
+                      <TableCell className="text-slate-500">
+                        {formatDateTime(order.archived_at)}
+                      </TableCell>
+                    ) : (
+                      <TableCell>
+                        <DeliveryDate
+                          date={order.delivery_date}
+                          isFinalStatus={order.statuses?.is_final ?? false}
+                        />
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
                 {orders.length === 0 ? (

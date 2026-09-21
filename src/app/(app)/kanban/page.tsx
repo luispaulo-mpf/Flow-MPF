@@ -23,6 +23,7 @@ export default async function KanbanPage() {
       "id, erp_order_number, customer_name, delivery_date, priority, status_id, responsible_user_id, users(name), order_items(status_id)",
     )
     .eq("company_id", user.companyId)
+    .is("archived_at", null)
     .order("priority", { ascending: false })
     .order("delivery_date", { ascending: true, nullsFirst: false })
 

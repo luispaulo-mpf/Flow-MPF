@@ -66,7 +66,7 @@ export default async function DashboardPage() {
     supabase
       .from("orders")
       .select(
-        "id, erp_order_number, customer_name, delivery_date, status_id, responsible_user_id, users(name)",
+        "id, erp_order_number, customer_name, delivery_date, status_id, responsible_user_id, archived_at, users(name)",
       )
       .eq("company_id", user.companyId),
     supabase
@@ -86,7 +86,12 @@ export default async function DashboardPage() {
 
   const statusById = new Map((orderStatuses ?? []).map((s) => [s.id, s]))
   const itemStatusById = new Map((itemStatuses ?? []).map((s) => [s.id, s]))
-  const allOrders = orders ?? []
+  const allOrdersRaw = orders ?? []
+  // Archived orders (completed long enough ago) are excluded from every
+  // operational indicator below — they've already left the Kanban/pedidos
+  // view. allOrdersRaw is kept only for cross-referencing an item's order
+  // status regardless of archive state (see capacity calc).
+  const allOrders = allOrdersRaw.filter((o) => !o.archived_at)
   const allTasks = tasks ?? []
   const allItems = orderItems ?? []
 
@@ -125,7 +130,7 @@ export default async function DashboardPage() {
     (itemStatuses ?? []).filter((s) => isItemFinishedStatusName(s.name)).map((s) => s.id),
   )
   const orderFinalById = new Map(
-    allOrders.map((o) => [o.id, statusById.get(o.status_id ?? "")?.is_final ?? false]),
+    allOrdersRaw.map((o) => [o.id, statusById.get(o.status_id ?? "")?.is_final ?? false]),
   )
   const pecasEmProducao = allItems
     .filter(
@@ -166,8 +171,10 @@ export default async function DashboardPage() {
       : null
 
   // ---- 1.2 / 1.3 Tempo por etapa e ciclo operacional (usam order_status_history) ----
+  const activeOrderIds = new Set(allOrders.map((o) => o.id))
   const orderHistoryByOrder = new Map<string, HistoryRow[]>()
   for (const row of orderStatusHistory ?? []) {
+    if (!activeOrderIds.has(row.order_id)) continue
     const list = orderHistoryByOrder.get(row.order_id) ?? []
     list.push({ statusId: row.status_id, statusName: row.statuses?.name ?? "", enteredAt: row.entered_at })
     orderHistoryByOrder.set(row.order_id, list)
