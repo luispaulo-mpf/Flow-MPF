@@ -25,6 +25,7 @@ import {
   isTaskLate,
 } from "@/lib/business-rules"
 import { buildSegments, formatDuration, summarizeByStatus, summarizeCycle, type HistoryRow } from "@/lib/history"
+import { ItemStagePanel, type ItemStage, type StageItem } from "./item-stage-panel"
 import {
   ClipboardList,
   Clock,
@@ -74,7 +75,9 @@ export default async function DashboardPage() {
       .select("id, title, due_date, status")
       .eq("company_id", user.companyId)
       .neq("status", "DONE"),
-    supabase.from("order_items").select("id, order_id, quantity, status_id, delivery_date"),
+    supabase
+      .from("order_items")
+      .select("id, order_id, quantity, status_id, delivery_date, description, erp_item_code"),
     supabase.from("order_status_history").select("order_id, status_id, entered_at, statuses(name)"),
     supabase
       .from("order_item_status_history")
@@ -165,6 +168,51 @@ export default async function DashboardPage() {
   }
   const allItemSegments = Array.from(itemSegmentsByItem.values()).flatMap((rows) => buildSegments(rows))
   const awaitingSegments = allItemSegments.filter((s) => isBlockedStatusName(s.statusName))
+
+  // ---- Produção por etapa do item (solda, usinagem, montagem...) ----
+  // Items of in-progress orders only (not archived, order not in a final
+  // status), grouped by their current item status.
+  const orderById = new Map(allOrders.map((o) => [o.id, o]))
+  const inProgressOrderIds = new Set(
+    allOrders.filter((o) => !statusById.get(o.status_id ?? "")?.is_final).map((o) => o.id),
+  )
+  // Open (current) history segment per item: how long it's been in its stage.
+  const currentSegmentByItem = new Map(
+    Array.from(itemSegmentsByItem.entries()).map(([itemId, rows]) => [itemId, buildSegments(rows).at(-1)]),
+  )
+  const itemStages: ItemStage[] = (itemStatuses ?? [])
+    .filter((s) => s.active)
+    .map((s) => {
+      const stageItems: StageItem[] = allItems
+        .filter((i) => i.status_id === s.id && inProgressOrderIds.has(i.order_id))
+        .map((i) => {
+          const order = orderById.get(i.order_id)!
+          const current = currentSegmentByItem.get(i.id)
+          return {
+            id: i.id,
+            orderId: i.order_id,
+            orderNumber: order.erp_order_number,
+            customerName: order.customer_name,
+            itemCode: i.erp_item_code,
+            description: i.description,
+            quantity: Number(i.quantity),
+            deliveryDate: i.delivery_date,
+            late: isItemLate(i.delivery_date, isItemFinishedStatusName(s.name)),
+            inStageMs: current?.statusId === s.id ? current.durationMs : null,
+          }
+        })
+        .sort((a, b) => (b.inStageMs ?? -1) - (a.inStageMs ?? -1))
+      return {
+        statusId: s.id,
+        name: s.name,
+        color: s.color,
+        items: stageItems,
+        pieces: stageItems.reduce((sum, i) => sum + i.quantity, 0),
+        orderCount: new Set(stageItems.map((i) => i.orderId)).size,
+        lateCount: stageItems.filter((i) => i.late).length,
+        oldestMs: stageItems[0]?.inStageMs ?? null,
+      }
+    })
   const avgAwaitingMs =
     awaitingSegments.length > 0
       ? awaitingSegments.reduce((sum, s) => sum + s.durationMs, 0) / awaitingSegments.length
@@ -280,6 +328,8 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      <ItemStagePanel stages={itemStages} />
 
       <Card>
         <CardContent className="pt-4">
