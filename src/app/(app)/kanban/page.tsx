@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { listStatuses } from "@/lib/queries"
-import { isBlockedStatusName } from "@/lib/business-rules"
+import { isBlockedStatusName, isThirdPartyStatusName } from "@/lib/business-rules"
 import { KanbanBoard, type KanbanOrder } from "@/components/kanban/kanban-board"
 
 export default async function KanbanPage() {
@@ -15,6 +15,9 @@ export default async function KanbanPage() {
 
   const awaitingMaterialStatusIds = new Set(
     itemStatuses.filter((s) => isBlockedStatusName(s.name)).map((s) => s.id),
+  )
+  const thirdPartyStatusIds = new Set(
+    itemStatuses.filter((s) => isThirdPartyStatusName(s.name)).map((s) => s.id),
   )
 
   const { data: orders } = await supabase
@@ -42,6 +45,8 @@ export default async function KanbanPage() {
       awaitingMaterialCount: items.filter(
         (i) => i.status_id && awaitingMaterialStatusIds.has(i.status_id),
       ).length,
+      thirdPartyCount: items.filter((i) => i.status_id && thirdPartyStatusIds.has(i.status_id))
+        .length,
     }
   })
 

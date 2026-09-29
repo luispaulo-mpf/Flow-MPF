@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Package } from "lucide-react"
+import { Factory, Package } from "lucide-react"
 import { PriorityBadge } from "@/components/domain/priority-badge"
 import { DeliveryDate } from "@/components/domain/delivery-date"
 import type { KanbanOrder } from "./kanban-board"
@@ -32,9 +32,20 @@ export function OrderCard({
         <PriorityBadge priority={order.priority} className="shrink-0" />
       </div>
       <p className="line-clamp-1 text-sm text-slate-600">{order.customerName}</p>
-      <div className="flex items-center gap-1 text-xs text-slate-500">
-        <Package className="size-3.5" />
-        {order.itemCount} {order.itemCount === 1 ? "item" : "itens"}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 text-xs text-slate-500">
+          <Package className="size-3.5" />
+          {order.itemCount} {order.itemCount === 1 ? "item" : "itens"}
+        </div>
+        {order.thirdPartyCount > 0 ? (
+          <span
+            title={`${order.thirdPartyCount} ${order.thirdPartyCount === 1 ? "item" : "itens"} em terceiros`}
+            className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-xs font-medium text-violet-700"
+          >
+            <Factory className="size-3.5" />
+            {order.thirdPartyCount} em terceiros
+          </span>
+        ) : null}
       </div>
       {order.awaitingMaterialCount > 0 ? (
         <p className="text-xs font-medium text-amber-600">

@@ -30,6 +30,7 @@ export type KanbanOrder = {
   responsibleName: string | null
   itemCount: number
   awaitingMaterialCount: number
+  thirdPartyCount: number
 }
 
 type Status = {

@@ -12,6 +12,21 @@ type User = {
   email: string
   role: string
   active: boolean
+  lastSignInAt: string | null
+  lastActionAt: string | null
+}
+
+// Fixed time zone so the server render (UTC on Vercel) and the browser agree.
+function formatDateTime(value: string | null) {
+  if (!value) return "—"
+  return new Date(value).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
 }
 
 export function UserRow({ user, currentUserId }: { user: User; currentUserId: string }) {
@@ -48,6 +63,18 @@ export function UserRow({ user, currentUserId }: { user: User; currentUserId: st
         </p>
         <p className="truncate text-xs text-slate-500">{user.email}</p>
       </div>
+      <dl className="flex gap-4 text-xs">
+        <div className="w-28">
+          <dt className="text-slate-400">Último login</dt>
+          <dd className="text-slate-700">{formatDateTime(user.lastSignInAt)}</dd>
+        </div>
+        <div className="w-28">
+          <dt className="text-slate-400">Última ação</dt>
+          <dd className="text-slate-700">
+            {user.lastActionAt ? formatDateTime(user.lastActionAt) : "Nenhuma"}
+          </dd>
+        </div>
+      </dl>
       <select
         defaultValue={user.role}
         disabled={isSelf}

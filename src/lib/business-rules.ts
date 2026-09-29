@@ -87,6 +87,19 @@ export function isBlockedStatusName(name: string | null | undefined): boolean {
   return normalized.includes("BLOQUE") || normalized.includes("AGUARDANDO")
 }
 
+/**
+ * Same name-based convention: an item status counts as "with a third party"
+ * (outsourced machining, plating etc.) when its name says so, e.g. "EM TERCEIROS".
+ */
+export function isThirdPartyStatusName(name: string | null | undefined): boolean {
+  if (!name) return false
+  const normalized = name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+  return normalized.includes("TERCEIRO")
+}
+
 function toISODate(date: Date) {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, "0")
