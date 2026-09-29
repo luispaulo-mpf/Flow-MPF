@@ -252,7 +252,8 @@ export async function addOrderItem(_prev: ActionResult, formData: FormData): Pro
     const code = String(formData.get("code") ?? "").trim() || null
     const quantity = Number(formData.get("quantity")) || 0
     const unit = String(formData.get("unit") ?? "").trim() || null
-    const deliveryDate = String(formData.get("delivery_date") ?? "") || null
+    // Item delivery dates come only from the ERP (Zoomsoft) via the
+    // "Produtos por pedido" import — never typed in by hand.
 
     if (!description) return { error: "Informe a descrição do item." }
 
@@ -266,7 +267,6 @@ export async function addOrderItem(_prev: ActionResult, formData: FormData): Pro
         description,
         quantity,
         unit,
-        delivery_date: deliveryDate,
         status_id: defaultItemStatusId,
       })
       .select("id")

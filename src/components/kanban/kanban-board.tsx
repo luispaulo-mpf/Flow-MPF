@@ -31,6 +31,8 @@ export type KanbanOrder = {
   itemCount: number
   awaitingMaterialCount: number
   thirdPartyCount: number
+  /** Pending (not finished) items grouped by ERP delivery date, soonest first. */
+  deliveries: { date: string; itemCount: number }[]
 }
 
 type Status = {
@@ -204,6 +206,8 @@ export function KanbanBoard({
         />
       </div>
       <DndContext
+        // Stable id so dnd-kit's aria-describedby matches between SSR and hydration.
+        id="kanban-board"
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}

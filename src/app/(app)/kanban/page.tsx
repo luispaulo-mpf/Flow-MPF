@@ -1,7 +1,11 @@
 import { requireUser } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { listStatuses } from "@/lib/queries"
-import { isBlockedStatusName, isThirdPartyStatusName } from "@/lib/business-rules"
+import {
+  isBlockedStatusName,
+  isItemFinishedStatusName,
+  isThirdPartyStatusName,
+} from "@/lib/business-rules"
 import { KanbanBoard, type KanbanOrder } from "@/components/kanban/kanban-board"
 
 export default async function KanbanPage() {
@@ -19,11 +23,14 @@ export default async function KanbanPage() {
   const thirdPartyStatusIds = new Set(
     itemStatuses.filter((s) => isThirdPartyStatusName(s.name)).map((s) => s.id),
   )
+  const finishedItemStatusIds = new Set(
+    itemStatuses.filter((s) => isItemFinishedStatusName(s.name)).map((s) => s.id),
+  )
 
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, erp_order_number, customer_name, delivery_date, priority, status_id, responsible_user_id, users(name), order_items(status_id)",
+      "id, erp_order_number, customer_name, delivery_date, priority, status_id, responsible_user_id, users(name), order_items(status_id, delivery_date)",
     )
     .eq("company_id", user.companyId)
     .is("archived_at", null)
@@ -32,6 +39,15 @@ export default async function KanbanPage() {
 
   const kanbanOrders: KanbanOrder[] = (orders ?? []).map((o) => {
     const items = o.order_items ?? []
+    const itemsByDate = new Map<string, number>()
+    for (const item of items) {
+      if (!item.delivery_date) continue
+      if (item.status_id && finishedItemStatusIds.has(item.status_id)) continue
+      itemsByDate.set(item.delivery_date, (itemsByDate.get(item.delivery_date) ?? 0) + 1)
+    }
+    const deliveries = [...itemsByDate.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, itemCount]) => ({ date, itemCount }))
     return {
       id: o.id,
       erpOrderNumber: o.erp_order_number,
@@ -47,6 +63,7 @@ export default async function KanbanPage() {
       ).length,
       thirdPartyCount: items.filter((i) => i.status_id && thirdPartyStatusIds.has(i.status_id))
         .length,
+      deliveries,
     }
   })
 
