@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { updateTask, type ActionResult } from "@/actions/tasks"
+import { CommentThread } from "@/components/comments/comment-thread"
 import type { TaskRowData } from "./task-row"
 
 const initialState: ActionResult = { error: null }
@@ -44,7 +45,7 @@ export function TaskEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{canEdit ? "Editar tarefa" : "Tarefa"}</DialogTitle>
         </DialogHeader>
@@ -136,6 +137,10 @@ export function TaskEditDialog({
             </DialogFooter>
           ) : null}
         </form>
+        <div className="flex flex-col gap-2 border-t pt-3">
+          <h3 className="text-sm font-semibold text-slate-800">Comentários</h3>
+          {open ? <CommentThread taskId={task.id} maxHeightClass="max-h-64" /> : null}
+        </div>
       </DialogContent>
     </Dialog>
   )

@@ -82,6 +82,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          mentioned_user_ids: string[]
           order_id: string | null
           task_id: string | null
           user_id: string
@@ -91,6 +92,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          mentioned_user_ids?: string[]
           order_id?: string | null
           task_id?: string | null
           user_id: string
@@ -100,6 +102,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          mentioned_user_ids?: string[]
           order_id?: string | null
           task_id?: string | null
           user_id?: string
@@ -164,6 +167,88 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          comment_id: string
+          company_id: string
+          created_at: string
+          id: string
+          kind: string
+          order_id: string | null
+          read_at: string | null
+          task_id: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          comment_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          order_id?: string | null
+          read_at?: string | null
+          task_id?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          comment_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          order_id?: string | null
+          read_at?: string | null
+          task_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_attachments: {
         Row: {

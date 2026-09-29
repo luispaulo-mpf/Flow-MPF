@@ -1,4 +1,5 @@
 import {
+  AtSign,
   LayoutDashboard,
   ClipboardList,
   KanbanSquare,
@@ -22,6 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/pedidos", label: "Pedidos", icon: ClipboardList },
   { href: "/kanban", label: "Kanban", icon: KanbanSquare },
   { href: "/tarefas", label: "Tarefas", icon: ListChecks },
+  { href: "/mencoes", label: "Menções", icon: AtSign },
   { href: "/importar", label: "Importar ERP", icon: UploadCloud, roles: ["ADMIN", "GESTOR"] },
   { href: "/usuarios", label: "Usuários", icon: Users, roles: ["ADMIN"] },
   { href: "/configuracoes", label: "Configurações", icon: Settings, roles: ["ADMIN"] },

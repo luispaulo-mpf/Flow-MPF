@@ -7,7 +7,7 @@ import { OrderArchivedBanner } from "./order-archived-banner"
 import { OrderHeader } from "./order-header"
 import { OrderItems } from "./order-items"
 import { OrderTasks } from "./order-tasks"
-import { OrderComments } from "./order-comments"
+import { CommentThread } from "@/components/comments/comment-thread"
 import { OrderActivity } from "./order-activity"
 import { OrderAttachments } from "./order-attachments"
 
@@ -37,7 +37,6 @@ export default async function OrderDetailPage({
     itemStatuses,
     users,
     { data: tasks },
-    { data: comments },
     { data: logs },
     { data: attachments },
   ] = await Promise.all([
@@ -56,11 +55,6 @@ export default async function OrderDetailPage({
       .select(
         "id, title, description, status, priority, due_date, created_at, completed_at, responsible_user_id, created_by, users:responsible_user_id(name)",
       )
-      .eq("order_id", id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("comments")
-      .select("id, content, created_at, users(name)")
       .eq("order_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -112,7 +106,14 @@ export default async function OrderDetailPage({
 
           <OrderTasks orderId={order.id} tasks={tasks ?? []} users={users} />
 
-          <OrderComments orderId={order.id} comments={comments ?? []} />
+          <Card id="comentarios">
+            <CardHeader>
+              <CardTitle className="text-base">Comentários</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CommentThread orderId={order.id} />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="flex flex-col gap-4">

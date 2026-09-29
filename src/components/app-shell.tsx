@@ -5,6 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Menu, Plus, LogOut, UploadCloud } from "lucide-react"
 import { SidebarNav } from "@/components/sidebar-nav"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import {
@@ -105,6 +106,8 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
             </div>
           ) : null}
 
+          <NotificationBell userId={user.id} />
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-9 gap-2 px-2">
@@ -113,7 +116,7 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
                     {initials(user.name)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden text-sm font-medium sm:inline">{user.name}</span>
+                <span className="hidden text-sm font-medium lg:inline">{user.name}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

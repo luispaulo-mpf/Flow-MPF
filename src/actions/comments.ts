@@ -21,12 +21,34 @@ export async function createComment(_prev: ActionResult, formData: FormData): Pr
   if (!orderId && !taskId) return { error: "Comentário sem destino." }
 
   const supabase = await createClient()
+
+  // Only keep mentions of real, active users of this company; the database
+  // trigger turns them into notifications.
+  let requestedMentions: string[] = []
+  try {
+    const parsed = JSON.parse(String(formData.get("mentioned_user_ids") ?? "[]"))
+    if (Array.isArray(parsed)) requestedMentions = parsed.filter((v) => typeof v === "string")
+  } catch {
+    requestedMentions = []
+  }
+  let mentionedUserIds: string[] = []
+  if (requestedMentions.length > 0) {
+    const { data: mentioned } = await supabase
+      .from("users")
+      .select("id")
+      .eq("company_id", user.companyId)
+      .eq("active", true)
+      .in("id", requestedMentions)
+    mentionedUserIds = (mentioned ?? []).map((u) => u.id).filter((id) => id !== user.id)
+  }
+
   const { error } = await supabase.from("comments").insert({
     company_id: user.companyId,
     order_id: orderId,
     task_id: taskId,
     user_id: user.id,
     content,
+    mentioned_user_ids: mentionedUserIds,
   })
 
   if (error) return { error: "Não foi possível salvar o comentário." }
@@ -42,5 +64,6 @@ export async function createComment(_prev: ActionResult, formData: FormData): Pr
 
   if (orderId) revalidatePath(`/pedidos/${orderId}`)
   if (taskId) revalidatePath(`/tarefas`)
+  revalidatePath("/mencoes")
   return { error: null }
 }
