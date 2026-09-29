@@ -39,7 +39,12 @@ function ImportWizardInner({ onReset }: { onReset: () => void }) {
   const preview = previewState.preview
   const validOrders = preview?.orders.filter((o) => o.errors.length === 0) ?? []
   const novos = validOrders.filter((o) => o.kind === "NOVO")
-  const atualizados = validOrders.filter((o) => o.kind === "ATUALIZADO")
+  const existentes = validOrders.filter((o) => o.kind === "EXISTENTE")
+  // "Produtos por pedido" only fills item delivery dates on existing orders
+  // (never deletes anything); every other report creates new orders only.
+  const syncsItemDates = preview?.reportType === "PRODUTOS_POR_PEDIDO"
+  const toImport = syncsItemDates ? validOrders : novos
+  const existingLabel = syncsItemDates ? "Só datas dos itens" : "Já existe — ignorado"
 
   if (confirmState.success) {
     return (
@@ -102,8 +107,8 @@ function ImportWizardInner({ onReset }: { onReset: () => void }) {
         <Badge className="border-green-200 bg-green-50 text-green-700" variant="outline">
           {novos.length} novos
         </Badge>
-        <Badge className="border-blue-200 bg-blue-50 text-blue-700" variant="outline">
-          {atualizados.length} atualizados
+        <Badge className="border-slate-200 bg-slate-50 text-slate-600" variant="outline">
+          {existentes.length} {syncsItemDates ? "com datas de itens a atualizar" : "já existentes (ignorados)"}
         </Badge>
         {preview.rowErrors.length > 0 ? (
           <Badge className="border-red-200 bg-red-50 text-red-700" variant="outline">
@@ -142,7 +147,10 @@ function ImportWizardInner({ onReset }: { onReset: () => void }) {
           </TableHeader>
           <TableBody>
             {validOrders.map((o) => (
-              <TableRow key={o.erpOrderNumber}>
+              <TableRow
+                key={o.erpOrderNumber}
+                className={o.kind === "EXISTENTE" && !syncsItemDates ? "opacity-50" : undefined}
+              >
                 <TableCell className="font-medium">{o.erpOrderNumber}</TableCell>
                 <TableCell>{o.customerName}</TableCell>
                 <TableCell>{o.deliveryDate ?? "—"}</TableCell>
@@ -153,10 +161,10 @@ function ImportWizardInner({ onReset }: { onReset: () => void }) {
                     className={
                       o.kind === "NOVO"
                         ? "border-green-200 bg-green-50 text-green-700"
-                        : "border-blue-200 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-slate-50 text-slate-600"
                     }
                   >
-                    {o.kind === "NOVO" ? "Novo" : "Atualizado"}
+                    {o.kind === "NOVO" ? "Novo" : existingLabel}
                   </Badge>
                 </TableCell>
               </TableRow>
@@ -169,7 +177,7 @@ function ImportWizardInner({ onReset }: { onReset: () => void }) {
         <input
           type="hidden"
           name="payload"
-          value={JSON.stringify({ reportType: preview.reportType, orders: validOrders })}
+          value={JSON.stringify({ reportType: preview.reportType, orders: toImport })}
         />
         {confirmState.error ? (
           <p className="text-sm text-destructive">{confirmState.error}</p>
@@ -180,8 +188,8 @@ function ImportWizardInner({ onReset }: { onReset: () => void }) {
           <Button type="button" variant="ghost" onClick={onReset}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={confirmPending || validOrders.length === 0}>
-            {confirmPending ? "Importando..." : `Confirmar importação (${validOrders.length})`}
+          <Button type="submit" disabled={confirmPending || toImport.length === 0}>
+            {confirmPending ? "Importando..." : `Confirmar importação (${toImport.length})`}
           </Button>
         </div>
       </form>

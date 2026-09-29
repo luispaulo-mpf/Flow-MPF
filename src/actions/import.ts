@@ -63,7 +63,7 @@ export async function previewImport(
 
     const orderedGroups = parsed.orders.map((o) => ({
       ...o,
-      kind: (existingSet.has(o.erpOrderNumber) ? "ATUALIZADO" : "NOVO") as "NOVO" | "ATUALIZADO",
+      kind: (existingSet.has(o.erpOrderNumber) ? "EXISTENTE" : "NOVO") as "NOVO" | "EXISTENTE",
     }))
 
     if (orderedGroups.length === 0) {
@@ -128,7 +128,7 @@ export async function previewImport(
         deliveryDate: parseDate(get("dataEntrega")),
         totalValue: parseNumber(get("valor")),
         items: [],
-        kind: existingSet.has(erpOrderNumber) ? "ATUALIZADO" : "NOVO",
+        kind: existingSet.has(erpOrderNumber) ? "EXISTENTE" : "NOVO",
         errors: [],
       })
     }
@@ -311,32 +311,46 @@ export async function confirmImport(
     }
   }
 
+  // Orders already in the Flow are never touched by this import: their items,
+  // statuses, tasks and dates belong to the team now. Re-check existence here
+  // instead of trusting the client-side "kind" so a stale preview can't
+  // overwrite anything.
+  const { data: existingOrders } = await supabase
+    .from("orders")
+    .select("erp_order_number")
+    .eq("company_id", user.companyId)
+  const existingSet = new Set((existingOrders ?? []).map((o) => o.erp_order_number))
+  let ignorados = 0
+
   for (const group of orders) {
+    if (existingSet.has(group.erpOrderNumber)) {
+      ignorados += 1
+      continue
+    }
+
     const { data: order, error } = await supabase
       .from("orders")
-      .upsert(
-        {
-          company_id: user.companyId,
-          erp_order_number: group.erpOrderNumber,
-          customer_name: group.customerName,
-          issue_date: group.issueDate,
-          delivery_date: group.deliveryDate,
-          total_value: group.totalValue,
-          // Only stamp a default status on brand-new orders; never overwrite
-          // the status of an order someone has already triaged on the Kanban.
-          ...(group.kind === "NOVO" && defaultStatus ? { status_id: defaultStatus.id } : {}),
-        },
-        { onConflict: "company_id,erp_order_number" },
-      )
+      .insert({
+        company_id: user.companyId,
+        erp_order_number: group.erpOrderNumber,
+        customer_name: group.customerName,
+        issue_date: group.issueDate,
+        delivery_date: group.deliveryDate,
+        total_value: group.totalValue,
+        status_id: defaultStatus?.id ?? null,
+      })
       .select("id")
       .single()
 
     if (error || !order) {
-      falhas += 1
+      // 23505 = unique violation: someone created this order in the meantime.
+      if (error?.code === "23505") ignorados += 1
+      else falhas += 1
       continue
     }
+    existingSet.add(group.erpOrderNumber)
 
-    if (group.kind === "NOVO" && defaultStatus) {
+    if (defaultStatus) {
       await recordOrderStatusHistory(supabase, {
         companyId: user.companyId,
         orderId: order.id,
@@ -344,7 +358,6 @@ export async function confirmImport(
       })
     }
 
-    await supabase.from("order_items").delete().eq("order_id", order.id)
     if (group.items.length > 0) {
       const { data: insertedItems } = await supabase
         .from("order_items")
@@ -376,11 +389,10 @@ export async function confirmImport(
       userId: user.id,
       orderId: order.id,
       action: "Pedido importado",
-      description: `Pedido ${group.erpOrderNumber} importado (${group.items.length} itens) via ${group.kind === "NOVO" ? "criação" : "atualização"}.`,
+      description: `Pedido ${group.erpOrderNumber} importado (${group.items.length} itens) via criação.`,
     })
 
-    if (group.kind === "NOVO") novos += 1
-    else atualizados += 1
+    novos += 1
   }
 
   revalidatePath("/pedidos")
@@ -390,6 +402,6 @@ export async function confirmImport(
   return {
     success: true,
     error: null,
-    summary: `${novos} pedidos novos, ${atualizados} atualizados${falhas ? `, ${falhas} falharam` : ""}.`,
+    summary: `${novos} pedidos novos criados${ignorados ? `, ${ignorados} já existentes ignorados` : ""}${falhas ? `, ${falhas} falharam` : ""}.`,
   }
 }

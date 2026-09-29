@@ -15,7 +15,7 @@ export type ImportOrderGroup = {
   deliveryDate: string | null
   totalValue: number | null
   items: ImportItemRow[]
-  kind: "NOVO" | "ATUALIZADO"
+  kind: "NOVO" | "EXISTENTE"
   errors: string[]
 }
 

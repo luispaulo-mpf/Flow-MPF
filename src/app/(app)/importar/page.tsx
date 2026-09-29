@@ -13,7 +13,7 @@ export default async function ImportarPage() {
         <h1 className="text-xl font-semibold tracking-tight text-slate-900">Importar do ERP</h1>
         <p className="text-sm text-slate-500">
           Envie um arquivo XLSX, CSV ou o PDF de &ldquo;Listagem de Pedidos&rdquo; do ERP para
-          criar ou atualizar pedidos.
+          criar os pedidos novos.
         </p>
       </div>
 
@@ -27,8 +27,10 @@ export default async function ImportarPage() {
             <strong>PDF:</strong> o relatório &ldquo;Listagem de Pedidos — Produtos por data de
             entrega&rdquo; exportado direto do ERP, sem precisar reformatar nada.
             <br />
-            Em ambos os casos, a chave do pedido é empresa + número do pedido — pedidos
-            existentes são atualizados, nunca duplicados.
+            Pode enviar a listagem completa sempre: só os pedidos que ainda não existem no
+            Flow são criados. Pedidos já existentes são ignorados — itens, status, tarefas e
+            datas deles nunca são alterados. A única exceção é o PDF &ldquo;Produtos por
+            pedido&rdquo;, que apenas preenche as datas de entrega dos itens, sem apagar nada.
           </CardDescription>
         </CardHeader>
         <CardContent>
