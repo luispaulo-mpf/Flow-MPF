@@ -54,7 +54,7 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-white px-4">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card px-4">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">

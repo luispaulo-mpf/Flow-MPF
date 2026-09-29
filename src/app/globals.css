@@ -84,23 +84,60 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --background: #11161e;
+  --foreground: #eef1f5;
+  --card: #1a212c;
+  --card-foreground: #eef1f5;
+  --popover: #1f2733;
+  --popover-foreground: #eef1f5;
   --primary: #ff5a29;
-  --primary-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --primary-foreground: #ffffff;
+  --secondary: #242c39;
+  --secondary-foreground: #eef1f5;
+  --muted: #242c39;
+  --muted-foreground: #97a2b3;
+  --accent: #3a2218;
+  --accent-foreground: #ffb59c;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --border: #2b3442;
+  --input: #354052;
+
+  /*
+   * Screens use Tailwind's fixed palette (text-slate-500, bg-red-50...).
+   * Remapping it here makes every screen follow the dark theme without a
+   * dark: variant on each class: greys invert, tints become deep shades and
+   * text shades become lighter so they stay readable on dark surfaces.
+   */
+  --color-slate-50: #141a23;
+  --color-slate-100: #1f2733;
+  --color-slate-200: #2b3442;
+  --color-slate-300: #3b4557;
+  --color-slate-400: #7c889b;
+  --color-slate-500: #97a2b3;
+  --color-slate-600: #b3bcc9;
+  --color-slate-700: #cbd2dc;
+  --color-slate-800: #dde2e9;
+  --color-slate-900: #eef1f5;
+  --color-red-50: #3a1717;
+  --color-red-200: #6e2626;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+  --color-amber-50: #3a2a0d;
+  --color-amber-200: #6b4d14;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-green-50: #0f2e1b;
+  --color-green-200: #1f5c35;
+  --color-green-600: #4ade80;
+  --color-green-700: #86efac;
+  --color-blue-50: #10233f;
+  --color-blue-200: #1f4075;
+  --color-blue-600: #60a5fa;
+  --color-blue-700: #93c5fd;
+  --color-violet-50: #2a1a4a;
+  --color-violet-200: #4c2f85;
+  --color-violet-700: #c4b5fd;
+  --color-orange-600: #fb923c;
   --ring: #ff5a29;
   --chart-1: #ff5a29;
   --chart-2: #1a8f63;

@@ -98,7 +98,7 @@ function Column({
       <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2.5">
         <span className="size-2.5 rounded-full" style={{ backgroundColor: status.color }} />
         <span className="text-sm font-semibold text-slate-800">{status.name}</span>
-        <span className="ml-auto rounded-full bg-white px-1.5 py-0.5 text-xs text-slate-500">
+        <span className="ml-auto rounded-full bg-card px-1.5 py-0.5 text-xs text-slate-500">
           {orders.length}
         </span>
       </div>

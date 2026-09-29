@@ -173,7 +173,7 @@ function TaskGroup({
   if (tasks.length === 0) return null
 
   return (
-    <details open={!collapsedByDefault} className="rounded-lg border border-slate-200 bg-white">
+    <details open={!collapsedByDefault} className="rounded-lg border border-slate-200 bg-card">
       <summary className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-800">
         <span className={tone}>{title}</span>
         <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">

@@ -3,6 +3,7 @@ import { Kanit, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const kanit = Kanit({
   variable: "--font-kanit",
@@ -25,10 +26,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="pt-BR"
       className={`${kanit.variable} ${geistMono.variable} h-full antialiased`}
+      // next-themes sets the class before hydration.
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
-        <Toaster position="top-right" richColors />
+        <ThemeProvider>
+          <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+          <Toaster position="top-right" richColors />
+        </ThemeProvider>
       </body>
     </html>
   );

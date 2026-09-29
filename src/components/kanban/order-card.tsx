@@ -19,7 +19,7 @@ export function OrderCard({
 }) {
   return (
     <div
-      className={`flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-shadow ${
+      className={`flex flex-col gap-2 rounded-lg border border-slate-200 bg-card p-3 shadow-sm transition-shadow ${
         dragging ? "opacity-60 shadow-md" : "hover:shadow-md"
       }`}
     >
@@ -131,7 +131,7 @@ function SplitDeliveries({
         {shown.map((d) => (
           <span
             key={d.date}
-            className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-slate-600"
+            className="rounded border border-slate-200 bg-card px-1.5 py-0.5 text-slate-600"
           >
             {shortDate(d.date)} · {itemsLabel(d.itemCount)}
           </span>

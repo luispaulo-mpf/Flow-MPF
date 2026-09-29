@@ -131,7 +131,7 @@ export function MentionTextarea({
       {suggestions.length > 0 ? (
         <ul
           role="listbox"
-          className="absolute bottom-full left-0 z-50 mb-1 w-64 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+          className="absolute bottom-full left-0 z-50 mb-1 w-64 overflow-hidden rounded-md border border-slate-200 bg-card py-1 shadow-lg"
         >
           {suggestions.map((u, i) => (
             <li key={u.id} role="option" aria-selected={i === highlight}>
