@@ -17,12 +17,14 @@ export default async function UsuariosPage() {
     .eq("company_id", currentUser.companyId)
     .order("name", { ascending: true })
 
-  // Last sign-in lives in auth.users (only reachable with the service role);
-  // last action comes from the activity log, which reflects real usage better
-  // since sessions stay open for days.
+  // Last sign-in lives in auth.users (only reachable with the service role).
+  // Sessions stay open for days, so it only says when the password was typed;
+  // last access (session refresh, ~hourly while the app is open) and last
+  // action (activity log) show real usage.
   const adminClient = createAdminClient()
-  const [{ data: authData }, lastActions] = await Promise.all([
+  const [{ data: authData }, { data: lastAccess }, lastActions] = await Promise.all([
     adminClient.auth.admin.listUsers({ perPage: 1000 }),
+    supabase.rpc("company_users_last_access"),
     Promise.all(
       (users ?? []).map(async (u) => {
         const { data } = await supabase
@@ -40,6 +42,7 @@ export default async function UsuariosPage() {
   const lastSignInById = new Map(
     (authData?.users ?? []).map((a) => [a.id, a.last_sign_in_at ?? null]),
   )
+  const lastAccessById = new Map((lastAccess ?? []).map((r) => [r.user_id, r.last_access_at]))
   const lastActionById = new Map(lastActions)
 
   return (
@@ -61,6 +64,7 @@ export default async function UsuariosPage() {
                 user={{
                   ...u,
                   lastSignInAt: lastSignInById.get(u.id) ?? null,
+                  lastAccessAt: lastAccessById.get(u.id) ?? null,
                   lastActionAt: lastActionById.get(u.id) ?? null,
                 }}
                 currentUserId={currentUser.id}

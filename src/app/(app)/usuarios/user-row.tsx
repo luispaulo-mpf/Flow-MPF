@@ -13,6 +13,7 @@ type User = {
   role: string
   active: boolean
   lastSignInAt: string | null
+  lastAccessAt: string | null
   lastActionAt: string | null
 }
 
@@ -57,7 +58,7 @@ export function UserRow({ user, currentUserId }: { user: User; currentUserId: st
 
   return (
     <li className="flex flex-wrap items-center gap-3 px-4 py-3">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-40 flex-1">
         <p className="truncate text-sm font-medium text-slate-800">
           {user.name} {isSelf ? <span className="text-xs text-slate-400">(você)</span> : null}
         </p>
@@ -65,8 +66,19 @@ export function UserRow({ user, currentUserId }: { user: User; currentUserId: st
       </div>
       <dl className="flex gap-4 text-xs">
         <div className="w-28">
-          <dt className="text-slate-400">Último login</dt>
+          <dt className="text-slate-400" title="Última vez que digitou e-mail e senha">
+            Último login
+          </dt>
           <dd className="text-slate-700">{formatDateTime(user.lastSignInAt)}</dd>
+        </div>
+        <div className="w-28">
+          <dt
+            className="text-slate-400"
+            title="Última vez que abriu o sistema (aproximado, atualiza a cada ~1h de uso)"
+          >
+            Último acesso
+          </dt>
+          <dd className="font-medium text-slate-900">{formatDateTime(user.lastAccessAt)}</dd>
         </div>
         <div className="w-28">
           <dt className="text-slate-400">Última ação</dt>

@@ -628,6 +628,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      company_users_last_access: {
+        Args: never
+        Returns: { user_id: string; last_access_at: string | null }[]
+      }
       current_company_id: { Args: never; Returns: string }
       current_role: { Args: never; Returns: string }
     }
