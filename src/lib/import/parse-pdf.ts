@@ -83,7 +83,13 @@ export function parsePedidosReport(rawText: string): {
       issueDate: string | null
       deliveryDate: string | null
       totalValue: number
-      items: { itemCode: string | null; description: string; quantity: number; unit: string }[]
+      items: {
+        itemCode: string | null
+        description: string
+        quantity: number
+        unit: string
+        deliveryDate: string | null
+      }[]
     }
   >()
   const rowErrors: string[] = []
@@ -144,6 +150,8 @@ export function parsePedidosReport(rawText: string): {
         description: descricao,
         quantity: parseNumber(qtde) ?? 0,
         unit: unidade || "UN",
+        // Each "Data entrega" section is the ERP date for the rows under it.
+        deliveryDate,
       })
     }
   }

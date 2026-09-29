@@ -40,9 +40,11 @@ function ImportWizardInner({ onReset }: { onReset: () => void }) {
   const validOrders = preview?.orders.filter((o) => o.errors.length === 0) ?? []
   const novos = validOrders.filter((o) => o.kind === "NOVO")
   const existentes = validOrders.filter((o) => o.kind === "EXISTENTE")
-  // "Produtos por pedido" only fills item delivery dates on existing orders
-  // (never deletes anything); every other report creates new orders only.
-  const syncsItemDates = preview?.reportType === "PRODUTOS_POR_PEDIDO"
+  // The ERP PDFs also fill item delivery dates on existing orders (never
+  // deleting anything); spreadsheets create new orders only.
+  const syncsItemDates =
+    preview?.reportType === "PRODUTOS_POR_PEDIDO" ||
+    preview?.reportType === "PRODUTOS_POR_DATA_ENTREGA"
   const toImport = syncsItemDates ? validOrders : novos
   const existingLabel = syncsItemDates ? "Só datas dos itens" : "Já existe — ignorado"
 

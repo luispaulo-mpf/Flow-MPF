@@ -29,8 +29,9 @@ export default async function ImportarPage() {
             <br />
             Pode enviar a listagem completa sempre: só os pedidos que ainda não existem no
             Flow são criados. Pedidos já existentes são ignorados — itens, status, tarefas e
-            datas deles nunca são alterados. A única exceção é o PDF &ldquo;Produtos por
-            pedido&rdquo;, que apenas preenche as datas de entrega dos itens, sem apagar nada.
+            dados deles nunca são alterados. A única exceção são os PDFs do Zoomsoft, que
+            atualizam o prazo de entrega de cada item (a fonte oficial das datas), sem apagar
+            nada.
           </CardDescription>
         </CardHeader>
         <CardContent>

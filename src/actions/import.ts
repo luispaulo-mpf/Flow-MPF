@@ -194,11 +194,16 @@ export async function confirmImport(
   let atualizados = 0
   let falhas = 0
 
-  if (reportType === "PRODUTOS_POR_PEDIDO") {
-    // This report only carries real per-item delivery dates. For orders that
-    // already exist we must not touch their existing fields/items — we only
-    // reconcile item delivery_date, and add items the report knows about
-    // that aren't in the database yet (split-shipment rows).
+  if (reportType === "PRODUTOS_POR_PEDIDO" || reportType === "PRODUTOS_POR_DATA_ENTREGA") {
+    // Both ERP PDFs carry real per-item delivery dates (Zoomsoft is the only
+    // source of truth for them). New orders are created with their items and
+    // dates. For orders that already exist we must not touch their fields or
+    // items — we only reconcile item delivery_date. "Produtos por pedido" is
+    // the full item list per order, so it may also add items missing here
+    // (split-shipment rows); "por data de entrega" can be a filtered date
+    // range, so it never adds items to an existing order.
+    const reportLabel =
+      reportType === "PRODUTOS_POR_PEDIDO" ? "Produtos por pedido" : "Produtos por data de entrega"
     for (const group of orders) {
       const { data: existingOrder } = await supabase
         .from("orders")
@@ -208,6 +213,8 @@ export async function confirmImport(
         .maybeSingle()
 
       let orderId = existingOrder?.id ?? null
+      const isNewOrder = !orderId
+      const mayAddItems = isNewOrder || reportType === "PRODUTOS_POR_PEDIDO"
 
       if (!orderId) {
         const { data: created, error } = await supabase
@@ -218,6 +225,7 @@ export async function confirmImport(
             customer_name: group.customerName,
             issue_date: group.issueDate,
             delivery_date: group.deliveryDate,
+            total_value: group.totalValue,
             status_id: defaultStatus?.id ?? null,
           })
           .select("id")
@@ -242,30 +250,39 @@ export async function confirmImport(
 
       const { data: existingItems } = await supabase
         .from("order_items")
-        .select("id, erp_item_code, delivery_date")
+        .select("id, erp_item_code, quantity, delivery_date")
         .eq("order_id", orderId)
+        .order("created_at", { ascending: true })
 
-      const remainingByCode = new Map<string, { id: string; delivery_date: string | null }[]>()
+      type ExistingItem = { id: string; quantity: number; delivery_date: string | null }
+      const remainingByCode = new Map<string, ExistingItem[]>()
       for (const item of existingItems ?? []) {
         const key = item.erp_item_code ?? ""
         if (!remainingByCode.has(key)) remainingByCode.set(key, [])
-        remainingByCode.get(key)!.push({ id: item.id, delivery_date: item.delivery_date })
+        remainingByCode.get(key)!.push({
+          id: item.id,
+          quantity: Number(item.quantity),
+          delivery_date: item.delivery_date,
+        })
       }
 
       let itemsTouched = 0
       for (const reportItem of group.items) {
         const key = reportItem.itemCode ?? ""
         const bucket = remainingByCode.get(key) ?? []
-        const match = bucket.shift()
+        // Same product split into several deliveries (e.g. 6 + 3 of item 1436):
+        // prefer the row with the same quantity, else the oldest unmatched one.
+        const sameQty = bucket.findIndex((i) => i.quantity === reportItem.quantity)
+        const [match] = bucket.splice(sameQty >= 0 ? sameQty : 0, 1)
 
         if (match) {
-          if (match.delivery_date !== reportItem.deliveryDate) {
+          if (match.delivery_date !== (reportItem.deliveryDate ?? null)) {
             await supabase
               .from("order_items")
               .update({ delivery_date: reportItem.deliveryDate ?? null })
               .eq("id", match.id)
           }
-        } else {
+        } else if (mayAddItems) {
           const { data: insertedItem } = await supabase
             .from("order_items")
             .insert({
@@ -287,6 +304,8 @@ export async function confirmImport(
               statusId: defaultItemStatus.id,
             })
           }
+        } else {
+          continue
         }
         itemsTouched += 1
       }
@@ -296,7 +315,9 @@ export async function confirmImport(
         userId: user.id,
         orderId,
         action: "Pedido importado",
-        description: `Pedido ${group.erpOrderNumber}: datas de entrega de ${itemsTouched} itens reconciliadas via relatório "Produtos por pedido".`,
+        description: isNewOrder
+          ? `Pedido ${group.erpOrderNumber} importado (${itemsTouched} itens, com prazos por item) via relatório "${reportLabel}".`
+          : `Pedido ${group.erpOrderNumber}: datas de entrega de ${itemsTouched} itens reconciliadas via relatório "${reportLabel}".`,
       })
     }
 
@@ -307,7 +328,7 @@ export async function confirmImport(
     return {
       success: true,
       error: null,
-      summary: `${novos} pedidos novos, ${atualizados} com datas de item reconciliadas${falhas ? `, ${falhas} falharam` : ""}.`,
+      summary: `${novos} pedidos novos criados, ${atualizados} já existentes com prazos dos itens atualizados (nada mais foi alterado)${falhas ? `, ${falhas} falharam` : ""}.`,
     }
   }
 
@@ -368,6 +389,7 @@ export async function confirmImport(
             description: item.description,
             quantity: item.quantity,
             unit: item.unit,
+            delivery_date: item.deliveryDate ?? null,
             status_id: defaultItemStatus?.id ?? null,
           })),
         )
