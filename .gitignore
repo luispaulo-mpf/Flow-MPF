@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 public/tmp/
+
+# Local database backups (contain company data; never commit)
+/Flow/
