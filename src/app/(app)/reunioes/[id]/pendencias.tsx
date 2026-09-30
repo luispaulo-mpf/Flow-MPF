@@ -12,6 +12,7 @@ import { isTaskLate } from "@/lib/business-rules"
 import { cn } from "@/lib/utils"
 import { AREA_OPTIONS, NewPendenciaDialog } from "./new-pendencia-dialog"
 import { AreaBadge } from "./attention-points"
+import { DeleteTaskButton } from "@/components/tasks/delete-task-button"
 import { formatDay, TASK_STATUS_LABELS } from "../format"
 
 export type Pendencia = {
@@ -113,6 +114,7 @@ export function Pendencias({
                 <th className="w-36 py-1 pr-3 font-medium">Quem</th>
                 <th className="w-32 py-1 pr-3 font-medium">Prazo</th>
                 <th className="w-36 py-1 font-medium">Status</th>
+                {canConduct ? <th className="w-10 py-1 print:hidden" /> : null}
               </tr>
             </thead>
             <tbody>
@@ -197,6 +199,11 @@ export function Pendencias({
                         </p>
                       </div>
                     </td>
+                    {canConduct ? (
+                      <td className="py-1 pl-1 print:hidden">
+                        <DeleteTaskButton taskId={p.id} title={p.title} />
+                      </td>
+                    ) : null}
                   </tr>
                 )
               })}

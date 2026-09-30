@@ -104,7 +104,13 @@ export default async function OrderDetailPage({
             showEngineeringReview={isEngenhariaStage}
           />
 
-          <OrderTasks orderId={order.id} tasks={tasks ?? []} users={users} />
+          <OrderTasks
+            orderId={order.id}
+            tasks={tasks ?? []}
+            users={users}
+            currentUserId={user.id}
+            role={user.role}
+          />
 
           <Card id="comentarios">
             <CardHeader>

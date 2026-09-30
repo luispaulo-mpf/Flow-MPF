@@ -54,6 +54,13 @@ export function canEditOrder(role: Role, responsibleUserId: string | null, userI
   return false
 }
 
+/** ADMIN/GESTOR delete any task; a RESPONSAVEL only the ones they created. */
+export function canDeleteTask(role: Role, createdBy: string, userId: string) {
+  if (role === "ADMIN" || role === "GESTOR") return true
+  if (role === "RESPONSAVEL") return createdBy === userId
+  return false
+}
+
 export function canEditTask(
   role: Role,
   responsibleUserId: string | null,

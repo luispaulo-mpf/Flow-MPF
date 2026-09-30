@@ -7,6 +7,7 @@ import { PriorityBadge } from "@/components/domain/priority-badge"
 import { updateTaskStatus } from "@/actions/tasks"
 import { isTaskLate } from "@/lib/business-rules"
 import { TaskEditDialog } from "./task-edit-dialog"
+import { DeleteTaskButton } from "./delete-task-button"
 import { AlertTriangle } from "lucide-react"
 import Link from "next/link"
 
@@ -30,10 +31,12 @@ export function TaskRow({
   task,
   users,
   canEdit,
+  canDelete = false,
 }: {
   task: TaskRowData
   users: { id: string; name: string }[]
   canEdit: boolean
+  canDelete?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [, startTransition] = useTransition()
@@ -79,6 +82,7 @@ export function TaskRow({
           </Link>
         ) : null}
         <PriorityBadge priority={task.priority} />
+        {canDelete ? <DeleteTaskButton taskId={task.id} title={task.title} /> : null}
       </li>
       <TaskEditDialog task={task} users={users} open={open} onOpenChange={setOpen} canEdit={canEdit} />
     </>

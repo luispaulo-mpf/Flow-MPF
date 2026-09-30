@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { requireUser, canEditTask, type CurrentUser } from "@/lib/auth"
+import { requireUser, canDeleteTask, canEditTask, type CurrentUser } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { listActiveUsers } from "@/lib/queries"
 import { Card, CardContent } from "@/components/ui/card"
@@ -192,6 +192,7 @@ function TaskGroup({
               task.created_by,
               currentUser.id,
             )}
+            canDelete={canDeleteTask(currentUser.role, task.created_by, currentUser.id)}
           />
         ))}
       </ul>

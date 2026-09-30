@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
-import { requireUser, canEditTask } from "@/lib/auth"
+import { requireUser, canDeleteTask, canEditTask } from "@/lib/auth"
 import { logActivity } from "@/lib/activity-log"
 
 export type ActionResult = { error: string | null }
@@ -69,6 +69,37 @@ async function assertCanEditTask(taskId: string) {
     throw new Error("Sem permissão para alterar esta tarefa.")
   }
   return { user, supabase, task }
+}
+
+export async function deleteTask(taskId: string) {
+  const user = await requireUser()
+  const supabase = await createClient()
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("id, order_id, title, created_by, meeting_id")
+    .eq("id", taskId)
+    .eq("company_id", user.companyId)
+    .single()
+  if (!task) throw new Error("Tarefa não encontrada.")
+  if (!canDeleteTask(user.role, task.created_by, user.id)) {
+    throw new Error("Você não tem permissão para excluir esta tarefa.")
+  }
+
+  const { error } = await supabase.from("tasks").delete().eq("id", taskId)
+  if (error) throw new Error("Não foi possível excluir a tarefa.")
+
+  await logActivity(supabase, {
+    companyId: user.companyId,
+    userId: user.id,
+    orderId: task.order_id,
+    action: "Tarefa excluída",
+    description: `Tarefa "${task.title}" excluída.`,
+  })
+
+  revalidatePath("/tarefas")
+  revalidatePath("/dashboard")
+  if (task.order_id) revalidatePath(`/pedidos/${task.order_id}`)
+  if (task.meeting_id) revalidatePath(`/reunioes/${task.meeting_id}`)
 }
 
 export async function updateTaskStatus(taskId: string, status: string) {

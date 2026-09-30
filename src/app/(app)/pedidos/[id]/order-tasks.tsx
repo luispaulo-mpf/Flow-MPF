@@ -11,6 +11,8 @@ import { PriorityBadge } from "@/components/domain/priority-badge"
 import { TaskEditDialog } from "@/components/tasks/task-edit-dialog"
 import type { TaskRowData } from "@/components/tasks/task-row"
 import { Plus } from "lucide-react"
+import { DeleteTaskButton } from "@/components/tasks/delete-task-button"
+import type { Role } from "@/types/domain"
 
 type Task = {
   id: string
@@ -28,14 +30,22 @@ type Task = {
 
 const initialState: ActionResult = { error: null }
 
+// Same rule as canDeleteTask in lib/auth (server-only module).
+function canDeleteTask(role: Role, createdBy: string, userId: string) {
+  if (role === "ADMIN" || role === "GESTOR") return true
+  return role === "RESPONSAVEL" && createdBy === userId
+}
+
 function TaskListItem({
   task,
   orderId,
   users,
+  canDelete,
 }: {
   task: Task
   orderId: string
   users: { id: string; name: string }[]
+  canDelete: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [, startTransition] = useTransition()
@@ -67,6 +77,7 @@ function TaskListItem({
         </p>
       </button>
       <PriorityBadge priority={task.priority} />
+      {canDelete ? <DeleteTaskButton taskId={task.id} title={task.title} /> : null}
       <TaskEditDialog task={taskRowData} users={users} open={open} onOpenChange={setOpen} canEdit />
     </li>
   )
@@ -76,10 +87,14 @@ export function OrderTasks({
   orderId,
   tasks,
   users,
+  currentUserId,
+  role,
 }: {
   orderId: string
   tasks: Task[]
   users: { id: string; name: string }[]
+  currentUserId: string
+  role: Role
 }) {
   const [showForm, setShowForm] = useState(false)
   const [state, formAction, pending] = useActionState(createTask, initialState)
@@ -144,7 +159,13 @@ export function OrderTasks({
         ) : (
           <ul className="flex flex-col divide-y divide-slate-100">
             {tasks.map((task) => (
-              <TaskListItem key={task.id} task={task} orderId={orderId} users={users} />
+              <TaskListItem
+                key={task.id}
+                task={task}
+                orderId={orderId}
+                users={users}
+                canDelete={canDeleteTask(role, task.created_by, currentUserId)}
+              />
             ))}
           </ul>
         )}
