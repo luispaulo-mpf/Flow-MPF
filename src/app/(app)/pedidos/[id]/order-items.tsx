@@ -203,20 +203,23 @@ export function OrderItems({
               fd.set("order_id", orderId)
               formAction(fd)
             }}
-            className="mx-4 flex flex-col gap-2 rounded-md border border-slate-200 p-3 sm:grid sm:grid-cols-[100px_1fr_90px_80px_auto] sm:items-center sm:gap-2 sm:space-y-0"
+            className="mx-4 flex flex-col gap-2 rounded-md border border-slate-200 p-3 sm:grid sm:grid-cols-[100px_1fr_90px_80px_150px_auto] sm:items-center sm:gap-2 sm:space-y-0"
           >
             <Input name="code" placeholder="Código" />
             <Input name="description" placeholder="Descrição" required />
             <Input name="quantity" type="number" step="0.01" min="0" placeholder="Qtd." defaultValue="1" />
             <Input name="unit" placeholder="Un." defaultValue="UN" />
+            <Input
+              name="delivery_date"
+              type="date"
+              title="Data de entrega do item (opcional)"
+              aria-label="Data de entrega do item"
+            />
             <Button type="submit" size="sm" disabled={pending}>
               {pending ? "Salvando..." : "Salvar"}
             </Button>
-            <p className="text-xs text-slate-400 sm:col-span-5">
-              O prazo do item vem do Zoomsoft (importação &ldquo;Produtos por pedido&rdquo;).
-            </p>
             {state.error ? (
-              <p className="text-sm text-destructive sm:col-span-5">{state.error}</p>
+              <p className="text-sm text-destructive sm:col-span-6">{state.error}</p>
             ) : null}
           </form>
         ) : null}

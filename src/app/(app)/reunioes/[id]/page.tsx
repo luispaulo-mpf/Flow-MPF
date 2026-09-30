@@ -21,7 +21,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
 
   const { data: meeting } = await supabase
     .from("meetings")
-    .select("id, meeting_date, status, notes, snapshot, closed_at, closed_by, created_by")
+    .select("id, meeting_date, status, notes, snapshot, closed_at, closed_by, created_by, is_test")
     .eq("id", id)
     .eq("company_id", user.companyId)
     .single()
@@ -30,8 +30,14 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
   const isOpen = meeting.status === "OPEN"
   const canConduct = isOpen && canManageOperations(user.role)
 
-  const [{ data: participants }, users, { data: orders }, { data: previousMeeting }, { data: closer }] =
-    await Promise.all([
+  const [
+    { data: participants },
+    users,
+    { data: orders },
+    { data: previousMeeting },
+    { data: closer },
+    { data: testMeetings },
+  ] = await Promise.all([
       supabase
         .from("meeting_participants")
         .select("id, name, user_id")
@@ -48,6 +54,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
         .from("meetings")
         .select("meeting_date")
         .eq("company_id", user.companyId)
+        .eq("is_test", false)
         .lt("meeting_date", meeting.meeting_date)
         .order("meeting_date", { ascending: false })
         .limit(1)
@@ -55,7 +62,12 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
       meeting.closed_by
         ? supabase.from("users").select("name").eq("id", meeting.closed_by).single()
         : Promise.resolve({ data: null }),
+      supabase.from("meetings").select("id").eq("company_id", user.companyId).eq("is_test", true),
     ])
+  // Test meetings never feed real ones (notes, pendências); a test meeting sees everything.
+  const testMeetingIds = new Set((testMeetings ?? []).map((m) => m.id))
+  const fromOtherTest = (meetingId: string | null) =>
+    !meeting.is_test && meetingId !== id && testMeetingIds.has(meetingId ?? "")
 
   // Open: live from the orders. Closed: exactly as it stood when closed.
   const agenda: MeetingAgenda =
@@ -81,7 +93,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
   const lotNotes: Record<string, LotNote> = {}
   for (const row of notesRows ?? []) {
     const rowDate = (row.meetings as { meeting_date: string } | null)?.meeting_date ?? ""
-    if (rowDate > meeting.meeting_date) continue
+    if (rowDate > meeting.meeting_date || fromOtherTest(row.meeting_id)) continue
     const key = `${row.order_id}|${row.delivery_date}`
     const current = lotNotes[key]
     const isThis = row.meeting_id === id
@@ -109,9 +121,12 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
       .not("meeting_area", "is", null)
     pendencias = ((data ?? []) as unknown as Pendencia[]).filter(
       (t) =>
-        t.status !== "DONE" ||
-        t.meeting_id === id ||
-        (t.completed_at && previousMeeting && t.completed_at.slice(0, 10) >= previousMeeting.meeting_date),
+        !fromOtherTest(t.meeting_id) &&
+        (t.status !== "DONE" ||
+          t.meeting_id === id ||
+          Boolean(
+            t.completed_at && previousMeeting && t.completed_at.slice(0, 10) >= previousMeeting.meeting_date,
+          )),
     )
   } else {
     const { data: reviews } = await supabase
@@ -182,7 +197,9 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
         meetingId={id}
         meetingDate={meeting.meeting_date}
         isOpen={isOpen}
+        isTest={meeting.is_test}
         canConduct={canConduct}
+        canDeleteTest={meeting.is_test && canManageOperations(user.role)}
         closedAt={meeting.closed_at}
         closedByName={closer?.name ?? null}
         participants={participants ?? []}

@@ -66,6 +66,13 @@ export function mondayOf(iso: string) {
 export function daysBetween(fromIso: string, toIsoDate: string) {
   return Math.round((toDate(toIsoDate).getTime() - toDate(fromIso).getTime()) / 86400000)
 }
+function formatShort(iso: string) {
+  const [, month, day] = iso.split("-")
+  return `${day}/${month}`
+}
+
+/** Days production needs, with all material available, before a delivery. */
+export const RAW_MATERIAL_LEAD_DAYS = 15
 
 /** "Saiu" = the order reached EXPEDIÇÃO (billed) or any later / final status. */
 function billedStatusIds(statuses: { id: string; name: string; position: number; is_final: boolean }[]) {
@@ -89,7 +96,7 @@ async function loadProductionData(supabase: Client, companyId: string) {
     supabase.from("statuses").select("id, name").eq("company_id", companyId).eq("scope", "ITEM"),
     supabase
       .from("orders")
-      .select("id, erp_order_number, customer_name, status_id")
+      .select("id, erp_order_number, customer_name, status_id, delivery_date")
       .eq("company_id", companyId)
       .is("archived_at", null),
   ])
@@ -203,24 +210,28 @@ export async function computeAgenda(
   }
   const plural = (n: number) => (n === 1 ? "item" : "itens")
 
+  // Coletas are informed manually in the meeting, never generated here.
   const attention: AttentionPoint[] = []
-  for (const [orderId, n] of byOrder(
-    activeItems.filter((i) => isThirdPartyStatusName(itemStatusName.get(i.status_id ?? ""))),
-  )) {
-    attention.push({
-      key: `COLETAS|${orderId}`,
-      area: "COLETAS",
-      title: `${label(orderId)}: ${n} ${plural(n)} em terceiros`,
-      orderId,
-    })
-  }
-  for (const [orderId, n] of byOrder(
-    activeItems.filter((i) => isBlockedStatusName(itemStatusName.get(i.status_id ?? ""))),
-  )) {
+
+  // Raw material only matters once delivery is within the production lead
+  // time: production needs RAW_MATERIAL_LEAD_DAYS with all material in hand.
+  const materialDeadline = addDays(meetingDate, RAW_MATERIAL_LEAD_DAYS)
+  const awaitingMaterial = activeItems
+    .filter((i) => isBlockedStatusName(itemStatusName.get(i.status_id ?? "")))
+    .map((i) => ({ ...i, due: i.delivery_date ?? orderById.get(i.order_id)?.delivery_date ?? null }))
+    .filter((i) => i.due !== null && i.due <= materialDeadline)
+  for (const [orderId, n] of byOrder(awaitingMaterial)) {
+    const due = awaitingMaterial
+      .filter((i) => i.order_id === orderId)
+      .map((i) => i.due as string)
+      .sort()[0]
+    const days = daysBetween(meetingDate, due)
+    const when =
+      days < 0 ? `entrega ${formatShort(due)}, já vencida` : `entrega ${formatShort(due)} (${days} ${days === 1 ? "dia" : "dias"})`
     attention.push({
       key: `COMPRAS|${orderId}`,
       area: "COMPRAS",
-      title: `${label(orderId)}: ${n} ${plural(n)} aguardando matéria-prima`,
+      title: `${label(orderId)}: ${n} ${plural(n)} aguardando matéria-prima · ${when}`,
       orderId,
     })
   }

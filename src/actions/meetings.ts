@@ -14,7 +14,7 @@ async function assertCanConduct(meetingId: string) {
   const supabase = await createClient()
   const { data: meeting } = await supabase
     .from("meetings")
-    .select("id, company_id, meeting_date, status, notes")
+    .select("id, company_id, meeting_date, status, notes, is_test")
     .eq("id", meetingId)
     .eq("company_id", user.companyId)
     .single()
@@ -23,38 +23,65 @@ async function assertCanConduct(meetingId: string) {
   return { user, supabase, meeting }
 }
 
+async function listTestMeetingIds(supabase: Awaited<ReturnType<typeof createClient>>, companyId: string) {
+  const { data } = await supabase
+    .from("meetings")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("is_test", true)
+  return new Set((data ?? []).map((m) => m.id))
+}
+
+/** Deletes a test meeting and every pendência created in it (real ones can't be deleted). */
+export async function deleteTestMeeting(meetingId: string) {
+  const user = await requireUser()
+  if (!canManageOperations(user.role)) throw new Error("Você não tem permissão.")
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("delete_test_meeting", { p_meeting_id: meetingId })
+  if (error) throw new Error("Não foi possível excluir a reunião de teste.")
+  revalidatePath("/reunioes")
+  revalidatePath("/tarefas")
+  redirect("/reunioes")
+}
+
 function refresh(meetingId: string) {
   revalidatePath(`/reunioes/${meetingId}`)
   revalidatePath("/reunioes")
 }
 
-export async function createMeeting(meetingDate: string) {
+export async function createMeeting(meetingDate: string, isTest = false) {
   const user = await requireUser()
   if (!canManageOperations(user.role)) throw new Error("Você não tem permissão para criar reuniões.")
   if (!/^\d{4}-\d{2}-\d{2}$/.test(meetingDate)) throw new Error("Data inválida.")
   const supabase = await createClient()
 
-  const { data: existing } = await supabase
-    .from("meetings")
-    .select("id")
-    .eq("company_id", user.companyId)
-    .eq("meeting_date", meetingDate)
-    .maybeSingle()
-  if (existing) redirect(`/reunioes/${existing.id}`)
+  // One real meeting per date; test meetings can share any date.
+  if (!isTest) {
+    const { data: existing } = await supabase
+      .from("meetings")
+      .select("id")
+      .eq("company_id", user.companyId)
+      .eq("meeting_date", meetingDate)
+      .eq("is_test", false)
+      .maybeSingle()
+    if (existing) redirect(`/reunioes/${existing.id}`)
+  }
 
   const { data: meeting, error } = await supabase
     .from("meetings")
-    .insert({ company_id: user.companyId, meeting_date: meetingDate, created_by: user.id })
+    .insert({ company_id: user.companyId, meeting_date: meetingDate, created_by: user.id, is_test: isTest })
     .select("id")
     .single()
   if (error || !meeting) throw new Error("Não foi possível criar a reunião.")
 
-  // Same people as last time; adjust in the meeting if someone is missing.
+  // Same people as the last real meeting; adjust in the meeting if needed.
   const { data: previous } = await supabase
     .from("meetings")
     .select("id")
     .eq("company_id", user.companyId)
-    .lt("meeting_date", meetingDate)
+    .eq("is_test", false)
+    .lte("meeting_date", meetingDate)
+    .neq("id", meeting.id)
     .order("meeting_date", { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -199,20 +226,27 @@ export async function closeMeeting(meetingId: string) {
     .from("meetings")
     .select("meeting_date")
     .eq("company_id", user.companyId)
+    .eq("is_test", false)
     .lt("meeting_date", meeting.meeting_date)
     .order("meeting_date", { ascending: false })
     .limit(1)
     .maybeSingle()
-  const { data: tasks } = await supabase
-    .from("tasks")
-    .select("id, status, completed_at, meeting_id")
-    .eq("company_id", user.companyId)
-    .not("meeting_area", "is", null)
+  const [{ data: tasks }, testMeetingIds] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("id, status, completed_at, meeting_id")
+      .eq("company_id", user.companyId)
+      .not("meeting_area", "is", null),
+    listTestMeetingIds(supabase, user.companyId),
+  ])
   const discussed = (tasks ?? []).filter(
     (t) =>
-      t.status !== "DONE" ||
-      t.meeting_id === meetingId ||
-      (t.completed_at && previous && t.completed_at.slice(0, 10) >= previous.meeting_date),
+      (t.meeting_id === meetingId ||
+        meeting.is_test ||
+        !testMeetingIds.has(t.meeting_id ?? "")) &&
+      (t.status !== "DONE" ||
+        t.meeting_id === meetingId ||
+        (t.completed_at && previous && t.completed_at.slice(0, 10) >= previous.meeting_date)),
   )
   if (discussed.length > 0) {
     await supabase.from("meeting_task_reviews").upsert(

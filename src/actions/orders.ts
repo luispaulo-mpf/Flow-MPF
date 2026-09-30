@@ -74,6 +74,7 @@ export async function createOrder(_prev: ActionResult, formData: FormData): Prom
   const itemDescriptions = formData.getAll("item_description").map(String)
   const itemQuantities = formData.getAll("item_quantity").map(String)
   const itemUnits = formData.getAll("item_unit").map(String)
+  const itemDeliveryDates = formData.getAll("item_delivery_date").map(String)
 
   const defaultItemStatusId = await getDefaultStatusId(user.companyId, "ITEM")
 
@@ -84,6 +85,7 @@ export async function createOrder(_prev: ActionResult, formData: FormData): Prom
       description: description.trim(),
       quantity: Number(itemQuantities[i]) || 0,
       unit: itemUnits[i]?.trim() || null,
+      delivery_date: itemDeliveryDates[i] || null,
       status_id: defaultItemStatusId,
     }))
     .filter((item) => item.description.length > 0)
@@ -252,8 +254,7 @@ export async function addOrderItem(_prev: ActionResult, formData: FormData): Pro
     const code = String(formData.get("code") ?? "").trim() || null
     const quantity = Number(formData.get("quantity")) || 0
     const unit = String(formData.get("unit") ?? "").trim() || null
-    // Item delivery dates come only from the ERP (Zoomsoft) via the
-    // "Produtos por pedido" import — never typed in by hand.
+    const deliveryDate = String(formData.get("delivery_date") ?? "") || null
 
     if (!description) return { error: "Informe a descrição do item." }
 
@@ -267,6 +268,7 @@ export async function addOrderItem(_prev: ActionResult, formData: FormData): Pro
         description,
         quantity,
         unit,
+        delivery_date: deliveryDate,
         status_id: defaultItemStatusId,
       })
       .select("id")

@@ -10,12 +10,19 @@ import { Plus, Trash2 } from "lucide-react"
 
 const initialState: ActionResult = { error: null }
 
-type ItemRow = { key: number; code: string; description: string; quantity: string; unit: string }
+type ItemRow = {
+  key: number
+  code: string
+  description: string
+  quantity: string
+  unit: string
+  deliveryDate: string
+}
 
 let nextKey = 1
 
 function emptyItem(): ItemRow {
-  return { key: nextKey++, code: "", description: "", quantity: "1", unit: "UN" }
+  return { key: nextKey++, code: "", description: "", quantity: "1", unit: "UN", deliveryDate: "" }
 }
 
 export function NewOrderForm({
@@ -108,7 +115,7 @@ export function NewOrderForm({
           {items.map((item) => (
             <div
               key={item.key}
-              className="grid grid-cols-1 items-center gap-2 rounded-md border border-slate-200 p-2 sm:grid-cols-[100px_1fr_90px_80px_auto]"
+              className="grid grid-cols-1 items-center gap-2 rounded-md border border-slate-200 p-2 sm:grid-cols-[100px_1fr_90px_80px_150px_auto]"
             >
               <Input
                 placeholder="Código"
@@ -137,6 +144,14 @@ export function NewOrderForm({
                 onChange={(e) => updateItem(item.key, "unit", e.target.value)}
                 name="item_unit"
               />
+              <Input
+                type="date"
+                title="Data de entrega do item"
+                aria-label="Data de entrega do item"
+                value={item.deliveryDate}
+                onChange={(e) => updateItem(item.key, "deliveryDate", e.target.value)}
+                name="item_delivery_date"
+              />
               <Button
                 type="button"
                 size="icon"
@@ -151,7 +166,7 @@ export function NewOrderForm({
           ))}
         </div>
         <p className="text-xs text-slate-400">
-          Linhas com descrição em branco são ignoradas ao salvar.
+          Linhas com descrição em branco são ignoradas ao salvar. A data de entrega do item é opcional; sem ela, vale a data de entrega do pedido.
         </p>
       </div>
 

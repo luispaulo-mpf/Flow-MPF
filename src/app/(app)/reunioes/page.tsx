@@ -28,7 +28,7 @@ export default async function ReunioesPage({
 
   const { data: meetings } = await supabase
     .from("meetings")
-    .select("id, meeting_date, status, notes, snapshot")
+    .select("id, meeting_date, status, notes, snapshot, is_test")
     .eq("company_id", user.companyId)
     .order("meeting_date", { ascending: false })
 
@@ -73,6 +73,7 @@ export default async function ReunioesPage({
       id: m.id,
       date: m.meeting_date,
       isOpen: m.status === "OPEN",
+      isTest: m.is_test,
       people,
       createdCount: created.length,
       doneCount: created.filter((t) => t.status === "DONE").length,
@@ -121,7 +122,14 @@ export default async function ReunioesPage({
                     href={`/reunioes/${r.id}`}
                     className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-slate-50 md:grid-cols-[120px_minmax(0,1fr)_170px_150px_16px]"
                   >
-                    <span className="font-medium text-slate-900">{formatDay(r.date, true)}</span>
+                    <span className="flex items-center gap-1.5 font-medium text-slate-900">
+                      {formatDay(r.date, true)}
+                      {r.isTest ? (
+                        <span className="rounded border border-violet-200 bg-violet-50 px-1 text-[10px] font-semibold text-violet-700">
+                          TESTE
+                        </span>
+                      ) : null}
+                    </span>
                     <ChevronRight className="size-4 text-slate-400 md:order-last" />
                     <span className="col-span-2 truncate text-sm text-slate-600 md:col-span-1">
                       {r.people.join(", ") || "—"}
