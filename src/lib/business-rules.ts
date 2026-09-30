@@ -19,6 +19,34 @@ export function brDate(value: Date | string = new Date()): string {
   return brDateFormat.format(typeof value === "string" ? new Date(value) : value)
 }
 
+/**
+ * Date/time for display, always in Brasília time — server components run on
+ * UTC and would otherwise show +3h compared to client-rendered ones.
+ */
+export function formatDateTimeBR(
+  value: Date | string,
+  options: Intl.DateTimeFormatOptions = { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" },
+): string {
+  return (typeof value === "string" ? new Date(value) : value).toLocaleString("pt-BR", {
+    ...options,
+    timeZone: APP_TIME_ZONE,
+  })
+}
+
+/** Order stages where an order can be held "aguardando cliente". */
+export function isClientWaitStageName(name: string | null | undefined): boolean {
+  const n = (name ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase()
+  return n.includes("ENGENHARIA") || n.includes("FINANCEIRO")
+}
+
+/** After this many days waiting on the customer, a follow-up task is created. */
+export const CLIENT_WAIT_ESCALATION_DAYS = 3
+
+/** Current instant in ms — read once per request on the server and passed down. */
+export function nowMs(): number {
+  return Date.now()
+}
+
 function startOfToday() {
   return parseDateOnly(brDate()) as Date
 }

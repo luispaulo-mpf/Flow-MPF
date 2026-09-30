@@ -15,12 +15,13 @@ import { Button } from "@/components/ui/button"
 import { updateTask, type ActionResult } from "@/actions/tasks"
 import { CommentThread } from "@/components/comments/comment-thread"
 import type { TaskRowData } from "./task-row"
+import { formatDateTimeBR } from "@/lib/business-rules"
 
 const initialState: ActionResult = { error: null }
 
 function formatDateTime(value: string | null) {
   if (!value) return null
-  return new Date(value).toLocaleString("pt-BR")
+  return formatDateTimeBR(value, { dateStyle: "short", timeStyle: "short" })
 }
 
 export function TaskEditDialog({

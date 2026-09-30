@@ -2,6 +2,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database.types"
 import {
+  CLIENT_WAIT_ESCALATION_DAYS,
   brDate,
   isBlockedStatusName,
   isItemFinishedStatusName,
@@ -112,7 +113,7 @@ function billedStatusIds(statuses: { id: string; name: string; position: number;
 }
 
 async function loadProductionData(supabase: Client, companyId: string) {
-  const [{ data: orderStatuses }, { data: itemStatuses }, { data: orders }] = await Promise.all([
+  const [{ data: orderStatuses }, { data: itemStatuses }, { data: orders }, { data: clientWaits }] = await Promise.all([
     supabase
       .from("statuses")
       .select("id, name, position, is_final")
@@ -124,6 +125,11 @@ async function loadProductionData(supabase: Client, companyId: string) {
       .select("id, erp_order_number, customer_name, status_id, delivery_date")
       .eq("company_id", companyId)
       .is("archived_at", null),
+    supabase
+      .from("order_client_waits")
+      .select("order_id, reason, started_at, statuses(name)")
+      .eq("company_id", companyId)
+      .is("ended_at", null),
   ])
   const orderIds = (orders ?? []).map((o) => o.id)
   const [{ data: items }, { data: openItemTasks }] = orderIds.length
@@ -147,6 +153,7 @@ async function loadProductionData(supabase: Client, companyId: string) {
     orders: orders ?? [],
     items: items ?? [],
     itemsWithOpenTasks: new Set((openItemTasks ?? []).map((t) => t.order_item_id as string)),
+    clientWaits: clientWaits ?? [],
   }
 }
 
@@ -332,6 +339,20 @@ export async function computeAgenda(
       area: "ENGENHARIA",
       title: `${label(orderId)}: ${n} ${plural(n)} com projeto ou revisão pendente`,
       orderId,
+    })
+  }
+  // Orders held "aguardando cliente" for CLIENT_WAIT_ESCALATION_DAYS or more
+  // (Engenharia -> Engenharia; Financeiro -> Assuntos gerais).
+  for (const w of data.clientWaits) {
+    if (!orderById.has(w.order_id)) continue
+    const days = daysBetween(brDate(w.started_at), meetingDate)
+    if (days < CLIENT_WAIT_ESCALATION_DAYS) continue
+    const stage = w.statuses?.name ?? ""
+    attention.push({
+      key: `CLIENTE|${w.order_id}`,
+      area: stage.toUpperCase().includes("ENGENHARIA") ? "ENGENHARIA" : "GERAL",
+      title: `${label(w.order_id)}: aguardando cliente há ${days} dias${stage ? ` em ${stage}` : ""} · ${w.reason}`,
+      orderId: w.order_id,
     })
   }
   const areaOrder = MEETING_AREAS.map((a) => a.key as string)

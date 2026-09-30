@@ -33,6 +33,8 @@ export type KanbanOrder = {
   thirdPartyCount: number
   /** Pending (not finished) items grouped by ERP delivery date, soonest first. */
   deliveries: { date: string; itemCount: number }[]
+  /** Open "aguardando cliente" wait: whole days so far and what is missing. */
+  clientWait: { days: number; reason: string } | null
 }
 
 type Status = {

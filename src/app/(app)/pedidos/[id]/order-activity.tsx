@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatDateTimeBR } from "@/lib/business-rules"
 
 type LogEntry = {
   id: string
@@ -9,12 +10,7 @@ type LogEntry = {
 }
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+  return formatDateTimeBR(value)
 }
 
 export function OrderActivity({ logs }: { logs: LogEntry[] }) {

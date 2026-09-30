@@ -82,7 +82,7 @@ export function ItemStagePanel({ stages: rawStages }: { stages: ItemStage[] }) {
           Produção por etapa
         </CardTitle>
         <p className="text-xs text-slate-500">
-          Itens dos pedidos em andamento, por etapa atual ·{" "}
+          Itens ainda em produção nos pedidos em andamento, por etapa atual ·{" "}
           <span className="font-medium text-slate-700">{totalItems} itens</span> ·{" "}
           <span className="font-medium text-slate-700">{formatQty(totalPieces)} peças</span>. Clique
           numa etapa para ver os itens.

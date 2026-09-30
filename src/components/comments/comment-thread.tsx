@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { createComment, type ActionResult } from "@/actions/comments"
 import { MentionTextarea, type MentionUser } from "./mention-textarea"
 import { cn } from "@/lib/utils"
+import { formatDateTimeBR } from "@/lib/business-rules"
 
 type Comment = {
   id: string
@@ -22,12 +23,7 @@ type Me = { id: string; role: string }
 const initialState: ActionResult = { error: null }
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+  return formatDateTimeBR(value)
 }
 
 function escapeRegExp(value: string) {

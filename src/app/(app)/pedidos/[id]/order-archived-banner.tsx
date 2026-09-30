@@ -6,9 +6,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { unarchiveOrder } from "@/actions/orders"
 import { Archive } from "lucide-react"
+import { formatDateTimeBR } from "@/lib/business-rules"
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("pt-BR")
+  return formatDateTimeBR(value, { dateStyle: "short", timeStyle: "short" })
 }
 
 export function OrderArchivedBanner({

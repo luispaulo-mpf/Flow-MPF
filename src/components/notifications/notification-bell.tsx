@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { formatDateTimeBR } from "@/lib/business-rules"
 
 type Notification = {
   id: string
@@ -33,7 +34,7 @@ function timeAgo(value: string) {
   if (minutes < 60) return `há ${minutes} min`
   const hours = Math.round(minutes / 60)
   if (hours < 24) return `há ${hours} h`
-  return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+  return formatDateTimeBR(value, { day: "2-digit", month: "2-digit" })
 }
 
 function describe(n: Notification) {

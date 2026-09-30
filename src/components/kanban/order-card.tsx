@@ -1,10 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { CalendarClock, Factory, Package } from "lucide-react"
+import { CalendarClock, Factory, Hourglass, Package } from "lucide-react"
 import { PriorityBadge } from "@/components/domain/priority-badge"
 import { DeliveryDate } from "@/components/domain/delivery-date"
-import { isOrderAtRisk, isOrderLate } from "@/lib/business-rules"
+import { CLIENT_WAIT_ESCALATION_DAYS, isOrderAtRisk, isOrderLate } from "@/lib/business-rules"
 import { cn } from "@/lib/utils"
 import type { KanbanOrder } from "./kanban-board"
 
@@ -49,6 +49,25 @@ export function OrderCard({
           </span>
         ) : null}
       </div>
+      {order.clientWait ? (
+        <p
+          title={order.clientWait.reason}
+          className={cn(
+            "flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs font-medium",
+            order.clientWait.days >= CLIENT_WAIT_ESCALATION_DAYS
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-sky-200 bg-sky-50 text-sky-700",
+          )}
+        >
+          <Hourglass className="size-3.5 shrink-0" />
+          <span className="line-clamp-1">
+            Aguardando cliente
+            {order.clientWait.days > 0
+              ? ` há ${order.clientWait.days} ${order.clientWait.days === 1 ? "dia" : "dias"}`
+              : " · hoje"}
+          </span>
+        </p>
+      ) : null}
       {order.awaitingMaterialCount > 0 ? (
         <p className="text-xs font-medium text-amber-600">
           ⚠ {order.awaitingMaterialCount === order.itemCount

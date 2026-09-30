@@ -25,7 +25,15 @@ import {
   isTaskDueToday,
   isTaskLate,
 } from "@/lib/business-rules"
-import { buildSegments, formatDuration, summarizeByStatus, summarizeCycle, type HistoryRow } from "@/lib/history"
+import {
+  buildSegments,
+  discountIntervals,
+  formatDuration,
+  summarizeByStatus,
+  summarizeCycle,
+  type HistoryRow,
+  type Interval,
+} from "@/lib/history"
 import { ItemStagePanel, type ItemStage, type StageItem } from "./item-stage-panel"
 import {
   ClipboardList,
@@ -57,6 +65,7 @@ export default async function DashboardPage() {
     { data: orderItems },
     { data: orderStatusHistory },
     { data: orderItemStatusHistory },
+    { data: clientWaits },
   ] = await Promise.all([
     supabase
       .from("companies")
@@ -83,6 +92,10 @@ export default async function DashboardPage() {
     supabase
       .from("order_item_status_history")
       .select("order_item_id, status_id, entered_at, statuses(name)"),
+    supabase
+      .from("order_client_waits")
+      .select("order_id, started_at, ended_at")
+      .eq("company_id", user.companyId),
   ])
 
   const riskWindowDays = company?.risk_window_days ?? 2
@@ -181,8 +194,9 @@ export default async function DashboardPage() {
   const currentSegmentByItem = new Map(
     Array.from(itemSegmentsByItem.entries()).map(([itemId, rows]) => [itemId, buildSegments(rows).at(-1)]),
   )
+  // Finished items are left out: this view is about work still on the floor.
   const itemStages: ItemStage[] = (itemStatuses ?? [])
-    .filter((s) => s.active)
+    .filter((s) => s.active && !isItemFinishedStatusName(s.name))
     .map((s) => {
       const stageItems: StageItem[] = allItems
         .filter((i) => i.status_id === s.id && inProgressOrderIds.has(i.order_id))
@@ -232,9 +246,31 @@ export default async function DashboardPage() {
     Array.from(orderHistoryByOrder.entries()).map(([orderId, rows]) => [orderId, buildSegments(rows)]),
   )
 
-  const activeOrderStatuses = (orderStatuses ?? []).filter((s) => s.active)
+  // The final status is where orders end, not a stage they spend time in.
+  // Time "aguardando cliente" doesn't count against the stage (Engenharia,
+  // Financeiro). The cycle below keeps it: the customer still waited.
+  const waitsByOrder = new Map<string, Interval[]>()
+  for (const w of clientWaits ?? []) {
+    const list = waitsByOrder.get(w.order_id) ?? []
+    list.push({ start: w.started_at, end: w.ended_at })
+    waitsByOrder.set(w.order_id, list)
+  }
+  const clientWaitMsByStatus = new Map<string, number>()
+  const stageSegments = Array.from(orderSegmentsById.entries()).map(([orderId, segments]) => {
+    const result = discountIntervals(segments, waitsByOrder.get(orderId) ?? [])
+    for (const [statusId, ms] of result.discountedByStatus) {
+      clientWaitMsByStatus.set(statusId, (clientWaitMsByStatus.get(statusId) ?? 0) + ms)
+    }
+    return result.segments
+  })
+
+  const activeOrderStatuses = (orderStatuses ?? []).filter((s) => s.active && !s.is_final)
+  const clientWaitNote = activeOrderStatuses
+    .filter((s) => (clientWaitMsByStatus.get(s.id) ?? 0) > 0)
+    .map((s) => `${s.name} ${formatDuration(clientWaitMsByStatus.get(s.id) ?? 0)}`)
+    .join(" · ")
   const stageStats = summarizeByStatus(
-    Array.from(orderSegmentsById.values()),
+    stageSegments,
     activeOrderStatuses.map((s) => ({ id: s.id, name: s.name })),
   )
 
@@ -416,6 +452,11 @@ export default async function DashboardPage() {
                 ))}
               </TableBody>
             </Table>
+            {clientWaitNote ? (
+              <p className="mt-2 text-xs text-slate-500">
+                Descontado por aguardar cliente (total): {clientWaitNote}
+              </p>
+            ) : null}
           </CardContent>
         </Card>
 

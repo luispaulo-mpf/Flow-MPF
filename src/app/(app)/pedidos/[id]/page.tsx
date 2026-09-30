@@ -10,6 +10,8 @@ import { OrderTasks } from "./order-tasks"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { OrderActivity } from "./order-activity"
 import { OrderAttachments } from "./order-attachments"
+import { OrderClientWait, type ClientWait } from "./order-client-wait"
+import { isClientWaitStageName, nowMs } from "@/lib/business-rules"
 
 export default async function OrderDetailPage({
   params,
@@ -39,6 +41,7 @@ export default async function OrderDetailPage({
     { data: tasks },
     { data: logs },
     { data: attachments },
+    { data: clientWaits },
   ] = await Promise.all([
     supabase
       .from("order_items")
@@ -68,6 +71,11 @@ export default async function OrderDetailPage({
       .select("id, file_name, storage_path, content_type, size_bytes, created_at, users:uploaded_by(name)")
       .eq("order_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("order_client_waits")
+      .select("id, reason, started_at, ended_at, task_id, statuses(name), starter:started_by(name)")
+      .eq("order_id", id)
+      .order("started_at", { ascending: false }),
   ])
 
   const canEdit = canEditOrder(user.role, order.responsible_user_id, user.id)
@@ -93,6 +101,13 @@ export default async function OrderDetailPage({
         />
       ) : null}
       <OrderHeader order={order} statuses={statuses} users={users} canEdit={canEdit} />
+      <OrderClientWait
+        orderId={order.id}
+        waits={(clientWaits ?? []) as unknown as ClientWait[]}
+        canManage={canManageOperations(user.role) && !order.archived_at}
+        stageAllowsWait={isClientWaitStageName(currentStatus?.name)}
+        now={nowMs()}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">

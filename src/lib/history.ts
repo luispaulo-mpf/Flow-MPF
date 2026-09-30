@@ -49,7 +49,6 @@ export type StageStat = {
 export function summarizeByStatus(
   segmentsByEntity: HistorySegment[][],
   orderedStatuses: { id: string; name: string }[],
-  now: Date = new Date(),
 ): StageStat[] {
   const byStatus = new Map<string, HistorySegment[]>()
   for (const segments of segmentsByEntity) {
@@ -66,7 +65,8 @@ export function summarizeByStatus(
       open.length > 0
         ? open.reduce((min, s) => (s.enteredAt < min ? s.enteredAt : min), open[0].enteredAt)
         : null
-    const oldestDurationMs = oldestEnteredAt ? now.getTime() - new Date(oldestEnteredAt).getTime() : null
+    // Longest open segment by (possibly discounted) duration, not raw entry time.
+    const oldestDurationMs = open.length > 0 ? Math.max(...open.map((s) => s.durationMs)) : null
     const avgDurationMs =
       segments.length > 0
         ? segments.reduce((sum, s) => sum + s.durationMs, 0) / segments.length
@@ -128,4 +128,36 @@ export function formatDuration(ms: number | null): string {
   const days = ms / (1000 * 60 * 60 * 24)
   if (days < 1) return "menos de 1 dia"
   return `${days.toFixed(1)} dias`
+}
+
+export type Interval = { start: string; end: string | null }
+
+/**
+ * Removes from each segment's duration the time it overlaps any of the given
+ * intervals (e.g. "aguardando cliente" waits), so a stage isn't charged for
+ * time spent waiting on someone else. Returns the adjusted segments and, per
+ * status, how much time was discounted.
+ */
+export function discountIntervals(
+  segments: HistorySegment[],
+  intervals: Interval[],
+  now: Date = new Date(),
+): { segments: HistorySegment[]; discountedByStatus: Map<string, number> } {
+  const discountedByStatus = new Map<string, number>()
+  if (intervals.length === 0) return { segments, discountedByStatus }
+  const adjusted = segments.map((seg) => {
+    const segStart = new Date(seg.enteredAt).getTime()
+    const segEnd = seg.exitedAt ? new Date(seg.exitedAt).getTime() : now.getTime()
+    let overlap = 0
+    for (const interval of intervals) {
+      const start = Math.max(segStart, new Date(interval.start).getTime())
+      const end = Math.min(segEnd, interval.end ? new Date(interval.end).getTime() : now.getTime())
+      if (end > start) overlap += end - start
+    }
+    if (overlap === 0) return seg
+    const discounted = Math.min(overlap, seg.durationMs)
+    discountedByStatus.set(seg.statusId, (discountedByStatus.get(seg.statusId) ?? 0) + discounted)
+    return { ...seg, durationMs: seg.durationMs - discounted }
+  })
+  return { segments: adjusted, discountedByStatus }
 }

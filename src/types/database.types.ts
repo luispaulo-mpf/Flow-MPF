@@ -621,6 +621,80 @@ export type Database = {
           },
         ]
       }
+      order_client_waits: {
+        Row: {
+          company_id: string
+          created_at: string
+          ended_at: string | null
+          ended_by: string | null
+          escalated_at: string | null
+          id: string
+          order_id: string
+          reason: string
+          started_at: string
+          started_by: string | null
+          status_id: string | null
+          task_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          ended_at?: string | null
+          ended_by?: string | null
+          escalated_at?: string | null
+          id?: string
+          order_id: string
+          reason: string
+          started_at?: string
+          started_by?: string | null
+          status_id?: string | null
+          task_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          ended_at?: string | null
+          ended_by?: string | null
+          escalated_at?: string | null
+          id?: string
+          order_id?: string
+          reason?: string
+          started_at?: string
+          started_by?: string | null
+          status_id?: string | null
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_client_waits_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_client_waits_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "statuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_client_waits_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_client_waits_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           archived_at: string | null

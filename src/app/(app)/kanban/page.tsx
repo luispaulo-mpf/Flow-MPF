@@ -5,6 +5,7 @@ import {
   isBlockedStatusName,
   isItemFinishedStatusName,
   isThirdPartyStatusName,
+  nowMs,
 } from "@/lib/business-rules"
 import { KanbanBoard, type KanbanOrder } from "@/components/kanban/kanban-board"
 
@@ -37,6 +38,19 @@ export default async function KanbanPage() {
     .order("priority", { ascending: false })
     .order("delivery_date", { ascending: true, nullsFirst: false })
 
+  const { data: openWaits } = await supabase
+    .from("order_client_waits")
+    .select("order_id, reason, started_at")
+    .eq("company_id", user.companyId)
+    .is("ended_at", null)
+  const now = nowMs()
+  const waitByOrder = new Map(
+    (openWaits ?? []).map((w) => [
+      w.order_id,
+      { reason: w.reason, days: Math.floor((now - new Date(w.started_at).getTime()) / 86_400_000) },
+    ]),
+  )
+
   const kanbanOrders: KanbanOrder[] = (orders ?? []).map((o) => {
     const items = o.order_items ?? []
     const itemsByDate = new Map<string, number>()
@@ -64,6 +78,7 @@ export default async function KanbanPage() {
       thirdPartyCount: items.filter((i) => i.status_id && thirdPartyStatusIds.has(i.status_id))
         .length,
       deliveries,
+      clientWait: waitByOrder.get(o.id) ?? null,
     }
   })
 

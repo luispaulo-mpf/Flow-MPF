@@ -17,7 +17,7 @@ import { PriorityBadge } from "@/components/domain/priority-badge"
 import { StatusBadge } from "@/components/domain/status-badge"
 import { DeliveryDate } from "@/components/domain/delivery-date"
 import { Plus } from "lucide-react"
-import { isBlockedStatusName, isOrderAtRisk, isOrderLate } from "@/lib/business-rules"
+import { formatDateTimeBR, isBlockedStatusName, isOrderAtRisk, isOrderLate } from "@/lib/business-rules"
 
 const PAGE_SIZE = 20
 
@@ -44,7 +44,7 @@ const SITUACAO_LABELS: Record<string, string> = {
 
 function formatDateTime(value: string | null) {
   if (!value) return "—"
-  return new Date(value).toLocaleDateString("pt-BR")
+  return formatDateTimeBR(value, { dateStyle: "short" })
 }
 
 export default async function PedidosPage({
