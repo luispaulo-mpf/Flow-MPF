@@ -6,7 +6,6 @@ import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -31,7 +30,6 @@ function thisMonday() {
 export function NewMeetingButton() {
   const [open, setOpen] = useState(false)
   const [date, setDate] = useState("")
-  const [isTest, setIsTest] = useState(false)
   const [pending, startTransition] = useTransition()
 
   return (
@@ -66,22 +64,13 @@ export function NewMeetingButton() {
             className="w-48"
           />
         </div>
-        <label className="flex items-start gap-2 rounded-md border border-violet-200 bg-violet-50 p-3 text-sm text-violet-700">
-          <Checkbox checked={isTest} onCheckedChange={(v) => setIsTest(v === true)} className="mt-0.5" />
-          <span>
-            <span className="font-medium">Reunião de teste</span>
-            <br />
-            Para experimentar: não entra no histórico nem nas reuniões reais, e pode ser excluída depois
-            com tudo o que foi criado nela.
-          </span>
-        </label>
         <DialogFooter>
           <Button
             disabled={pending || !date}
             onClick={() =>
               startTransition(async () => {
                 try {
-                  await createMeeting(date, isTest)
+                  await createMeeting(date)
                 } catch (e) {
                   // redirect() inside the action surfaces as a thrown NEXT_REDIRECT; let it through.
                   if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e

@@ -157,30 +157,25 @@ function itemDate(item: { delivery_date: string | null }, order: { delivery_date
 
 /**
  * Lot annotations that apply to a meeting: for each lot, this meeting's own
- * note, else the latest one from an earlier real meeting (a forecast or
- * reason given last week still holds this week). Test meetings never feed
- * real ones.
+ * note, else the latest one from an earlier meeting (a forecast or reason
+ * given last week still holds this week).
  */
 export async function loadLotNotes(
   supabase: Client,
   companyId: string,
-  meeting: { id: string; meeting_date: string; is_test: boolean },
+  meeting: { id: string; meeting_date: string },
 ): Promise<Record<string, LotNote>> {
-  const [{ data: rows }, { data: testMeetings }] = await Promise.all([
-    supabase
-      .from("meeting_order_notes")
-      .select(
-        "meeting_id, order_id, delivery_date, committed, reason, forecast_date, included, excluded, meetings!inner(meeting_date, company_id)",
-      )
-      .eq("meetings.company_id", companyId),
-    supabase.from("meetings").select("id").eq("company_id", companyId).eq("is_test", true),
-  ])
-  const testIds = new Set((testMeetings ?? []).map((m) => m.id))
+  const { data: rows } = await supabase
+    .from("meeting_order_notes")
+    .select(
+      "meeting_id, order_id, delivery_date, committed, reason, forecast_date, included, excluded, meetings!inner(meeting_date, company_id)",
+    )
+    .eq("meetings.company_id", companyId)
   const notes: Record<string, LotNote> = {}
   for (const row of rows ?? []) {
     const rowDate = (row.meetings as { meeting_date: string } | null)?.meeting_date ?? ""
     const isThis = row.meeting_id === meeting.id
-    if (!isThis && (rowDate > meeting.meeting_date || (!meeting.is_test && testIds.has(row.meeting_id)))) continue
+    if (!isThis && rowDate > meeting.meeting_date) continue
     const key = `${row.order_id}|${row.delivery_date}`
     const current = notes[key]
     if (isThis || !current || (!current.fromThisMeeting && rowDate > current.meetingDate)) {

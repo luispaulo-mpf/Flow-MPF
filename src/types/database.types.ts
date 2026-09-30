@@ -298,7 +298,6 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
-          is_test: boolean
           meeting_date: string
           notes: Json
           snapshot: Json | null
@@ -312,7 +311,6 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
-          is_test?: boolean
           meeting_date: string
           notes?: Json
           snapshot?: Json | null
@@ -326,7 +324,6 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
-          is_test?: boolean
           meeting_date?: string
           notes?: Json
           snapshot?: Json | null
@@ -898,7 +895,6 @@ export type Database = {
         Returns: { user_id: string; last_access_at: string | null }[]
       }
       current_company_id: { Args: never; Returns: string }
-      delete_test_meeting: { Args: { p_meeting_id: string }; Returns: undefined }
       current_role: { Args: never; Returns: string }
     }
     Enums: {

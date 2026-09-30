@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Download, Lock, Plus, Trash2, User, UserPlus, X } from "lucide-react"
+import { Download, Lock, Plus, User, UserPlus, X } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { addParticipant, closeMeeting, deleteTestMeeting, removeParticipant } from "@/actions/meetings"
+import { addParticipant, closeMeeting, removeParticipant } from "@/actions/meetings"
 import { formatDay } from "../format"
 
 type Participant = { id: string; name: string; user_id: string | null }
@@ -25,9 +25,7 @@ export function MeetingHeader({
   meetingId,
   meetingDate,
   isOpen,
-  isTest,
   canConduct,
-  canDeleteTest,
   closedAt,
   closedByName,
   participants,
@@ -36,9 +34,7 @@ export function MeetingHeader({
   meetingId: string
   meetingDate: string
   isOpen: boolean
-  isTest: boolean
   canConduct: boolean
-  canDeleteTest: boolean
   closedAt: string | null
   closedByName: string | null
   participants: Participant[]
@@ -49,7 +45,6 @@ export function MeetingHeader({
   const [adding, setAdding] = useState(false)
   const [freeName, setFreeName] = useState("")
   const [confirmClose, setConfirmClose] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const presentUserIds = new Set(participants.map((p) => p.user_id).filter(Boolean))
   const available = users.filter((u) => !presentUserIds.has(u.id))
@@ -71,20 +66,9 @@ export function MeetingHeader({
       <CardContent className="flex flex-col gap-3 pt-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-slate-900">
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">
               Alinhamento semanal · {formatDay(meetingDate, true)}
-              {isTest ? (
-                <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-xs font-semibold text-violet-700">
-                  TESTE
-                </span>
-              ) : null}
             </h1>
-            {isTest ? (
-              <p className="text-xs text-violet-700">
-                Reunião de teste: não entra no histórico nem nas reuniões reais. As pendências criadas aqui são
-                tarefas de verdade (quem for responsável recebe aviso) e são apagadas ao excluir o teste.
-              </p>
-            ) : null}
             {isOpen ? (
               <p className="text-sm text-amber-600">Em andamento · a pauta abaixo é atualizada com os pedidos</p>
             ) : (
@@ -105,46 +89,6 @@ export function MeetingHeader({
             )}
           </div>
           <div className="flex gap-2 print:hidden">
-            {canDeleteTest ? (
-              <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-red-600">
-                    <Trash2 className="size-4" />
-                    Excluir teste
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Excluir a reunião de teste?</DialogTitle>
-                    <DialogDescription>
-                      Apaga esta reunião e todas as pendências criadas nela. Pendências de reuniões reais
-                      não são afetadas.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-                      Cancelar
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      disabled={pending}
-                      onClick={() =>
-                        startTransition(async () => {
-                          try {
-                            await deleteTestMeeting(meetingId)
-                          } catch (e) {
-                            if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e
-                            toast.error(e instanceof Error ? e.message : "Não foi possível excluir.")
-                          }
-                        })
-                      }
-                    >
-                      {pending ? "Excluindo..." : "Excluir"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            ) : null}
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Download className="size-4" />
               Exportar PDF
