@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { requireUser, canManageOperations } from "@/lib/auth"
 import { logActivity } from "@/lib/activity-log"
-import { computeAgenda, MEETING_AREAS } from "@/lib/meetings"
+import { computeAgenda, loadLotNotes, MEETING_AREAS } from "@/lib/meetings"
 
 /** ADMIN/GESTOR conduct meetings; a closed meeting never changes. */
 async function assertCanConduct(meetingId: string) {
@@ -148,9 +148,12 @@ export async function saveOrderNote(
     committed: boolean
     reason: string
     forecastDate: string | null
+    included?: boolean
+    excluded?: boolean
   },
 ) {
   const { supabase, user } = await assertCanConduct(meetingId)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.deliveryDate)) throw new Error("Data inválida.")
   const { error } = await supabase.from("meeting_order_notes").upsert(
     {
       meeting_id: meetingId,
@@ -159,6 +162,8 @@ export async function saveOrderNote(
       committed: input.committed,
       reason: input.reason.trim() || null,
       forecast_date: input.forecastDate || null,
+      included: input.included ?? false,
+      excluded: input.excluded ?? false,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     },
@@ -220,7 +225,8 @@ export async function createMeetingTask(
 export async function closeMeeting(meetingId: string) {
   const { supabase, user, meeting } = await assertCanConduct(meetingId)
 
-  const agenda = await computeAgenda(supabase, user.companyId, meeting.meeting_date)
+  const notes = await loadLotNotes(supabase, user.companyId, meeting)
+  const agenda = await computeAgenda(supabase, user.companyId, meeting.meeting_date, notes)
 
   const { data: previous } = await supabase
     .from("meetings")

@@ -21,17 +21,41 @@ export const MEETING_AREA_LABELS: Record<string, string> = Object.fromEntries(
   MEETING_AREAS.map((a) => [a.key, a.label]),
 )
 
-/** One delivery lot: the items of an order that share an ERP delivery date. */
+/**
+ * One delivery lot: the items of an order that share an ERP delivery date
+ * (the item's own date, else the order's). `key` is `orderId|erpDate`.
+ */
 export type Lot = {
   key: string
   orderId: string
   orderNumber: string
   customerName: string
+  /** Day it's shown in the billing: the meeting's forecast, else the ERP date. */
   date: string
+  /** ERP (Zoomsoft) delivery date. */
+  erpDate: string
+  /** Moved to another day in a meeting. */
+  rescheduled: boolean
+  /** Added to the billing by hand in a meeting. */
+  manual: boolean
+  /** Taken off the billing in a meeting (still listed, so it can be undone). */
+  excluded: boolean
   itemCount: number
   pendingCount: number
   risk: "ok" | "warn" | "done"
   pendingByStage: { name: string; count: number }[]
+}
+
+/** Meeting annotation of a lot; the latest one up to a meeting applies. */
+export type LotNote = {
+  committed: boolean
+  reason: string | null
+  forecastDate: string | null
+  included: boolean
+  excluded: boolean
+  /** Meeting where it was recorded (may be an earlier one, carried over). */
+  meetingDate: string
+  fromThisMeeting: boolean
 }
 export type LateLot = Lot & { daysLate: number }
 export type AttentionPoint = {
@@ -125,11 +149,60 @@ async function loadProductionData(supabase: Client, companyId: string) {
   }
 }
 
+/** ERP delivery date of an item: its own, else the order's. */
+function itemDate(item: { delivery_date: string | null }, order: { delivery_date: string | null } | undefined) {
+  return item.delivery_date ?? order?.delivery_date ?? null
+}
+
+/**
+ * Lot annotations that apply to a meeting: for each lot, this meeting's own
+ * note, else the latest one from an earlier real meeting (a forecast or
+ * reason given last week still holds this week). Test meetings never feed
+ * real ones.
+ */
+export async function loadLotNotes(
+  supabase: Client,
+  companyId: string,
+  meeting: { id: string; meeting_date: string; is_test: boolean },
+): Promise<Record<string, LotNote>> {
+  const [{ data: rows }, { data: testMeetings }] = await Promise.all([
+    supabase
+      .from("meeting_order_notes")
+      .select(
+        "meeting_id, order_id, delivery_date, committed, reason, forecast_date, included, excluded, meetings!inner(meeting_date, company_id)",
+      )
+      .eq("meetings.company_id", companyId),
+    supabase.from("meetings").select("id").eq("company_id", companyId).eq("is_test", true),
+  ])
+  const testIds = new Set((testMeetings ?? []).map((m) => m.id))
+  const notes: Record<string, LotNote> = {}
+  for (const row of rows ?? []) {
+    const rowDate = (row.meetings as { meeting_date: string } | null)?.meeting_date ?? ""
+    const isThis = row.meeting_id === meeting.id
+    if (!isThis && (rowDate > meeting.meeting_date || (!meeting.is_test && testIds.has(row.meeting_id)))) continue
+    const key = `${row.order_id}|${row.delivery_date}`
+    const current = notes[key]
+    if (isThis || !current || (!current.fromThisMeeting && rowDate > current.meetingDate)) {
+      notes[key] = {
+        committed: row.committed,
+        reason: row.reason,
+        forecastDate: row.forecast_date,
+        included: row.included,
+        excluded: row.excluded,
+        meetingDate: rowDate,
+        fromThisMeeting: isThis,
+      }
+    }
+  }
+  return notes
+}
+
 /** Live agenda for a meeting held on `meetingDate` (the week's Monday, usually). */
 export async function computeAgenda(
   supabase: Client,
   companyId: string,
   meetingDate: string,
+  notes: Record<string, LotNote> = {},
 ): Promise<MeetingAgenda> {
   const data = await loadProductionData(supabase, companyId)
   const billed = billedStatusIds(data.orderStatuses)
@@ -139,18 +212,29 @@ export async function computeAgenda(
   const isPending = (i: { status_id: string | null }) =>
     !isItemFinishedStatusName(itemStatusName.get(i.status_id ?? ""))
 
-  // ---- Delivery lots ----
+  // ---- Delivery lots (item date, else order date) ----
   const lotItems = new Map<string, typeof data.items>()
   for (const item of data.items) {
-    if (!item.delivery_date) continue
-    const key = `${item.order_id}|${item.delivery_date}`
+    const date = itemDate(item, orderById.get(item.order_id))
+    if (!date) continue
+    const key = `${item.order_id}|${date}`
     if (!lotItems.has(key)) lotItems.set(key, [])
     lotItems.get(key)!.push(item)
   }
+  // Orders added to the billing by hand in a meeting: all of their items.
+  for (const [key, note] of Object.entries(notes)) {
+    if (!note.included || lotItems.has(key)) continue
+    const orderId = key.split("|")[0]
+    const items = data.items.filter((i) => i.order_id === orderId)
+    if (orderById.has(orderId) && items.length > 0) lotItems.set(key, items)
+  }
+
   const lots: Lot[] = []
   for (const [key, items] of lotItems) {
     const order = orderById.get(items[0].order_id)
     if (!order) continue
+    const erpDate = key.split("|")[1]
+    const note = notes[key]
     const orderBilled = billed.has(order.status_id ?? "")
     const pending = orderBilled ? [] : items.filter(isPending)
     const stageCounts = new Map<string, number>()
@@ -162,12 +246,17 @@ export async function computeAgenda(
       const name = itemStatusName.get(i.status_id ?? "")
       return !name || isBlockedStatusName(name) || isThirdPartyStatusName(name)
     })
+    const date = note?.forecastDate ?? erpDate
     lots.push({
       key,
       orderId: order.id,
       orderNumber: order.erp_order_number,
       customerName: order.customer_name,
-      date: items[0].delivery_date as string,
+      date,
+      erpDate,
+      rescheduled: date !== erpDate,
+      manual: Boolean(note?.included),
+      excluded: Boolean(note?.excluded),
       itemCount: items.length,
       pendingCount: pending.length,
       risk: pending.length === 0 ? "done" : warn ? "warn" : "ok",
@@ -188,10 +277,10 @@ export async function computeAgenda(
     return { start, days }
   })
 
-  // ---- Late: delivery date before the meeting and still not out ----
+  // ---- Late: ERP date before the meeting and still not out ----
   const late: LateLot[] = lots
-    .filter((l) => l.pendingCount > 0 && l.date < meetingDate)
-    .map((l) => ({ ...l, daysLate: daysBetween(l.date, meetingDate) }))
+    .filter((l) => !l.manual && l.pendingCount > 0 && l.erpDate < meetingDate)
+    .map((l) => ({ ...l, daysLate: daysBetween(l.erpDate, meetingDate) }))
     .sort((a, b) => b.daysLate - a.daysLate)
 
   // ---- Attention points (orders not billed yet) ----
@@ -300,8 +389,9 @@ export async function lotOutcomes(supabase: Client, companyId: string) {
 
   const lotItems = new Map<string, typeof data.items>()
   for (const item of data.items) {
-    if (!item.delivery_date) continue
-    const key = `${item.order_id}|${item.delivery_date}`
+    const date = itemDate(item, orderById.get(item.order_id))
+    if (!date) continue
+    const key = `${item.order_id}|${date}`
     if (!lotItems.has(key)) lotItems.set(key, [])
     lotItems.get(key)!.push(item)
   }
@@ -309,7 +399,7 @@ export async function lotOutcomes(supabase: Client, companyId: string) {
   const outcomes = new Map<string, LotOutcome>()
   for (const [key, items] of lotItems) {
     const order = orderById.get(items[0].order_id)
-    const date = items[0].delivery_date as string
+    const date = key.split("|")[1]
     let outAt: string | null = null
     if (order && billed.has(order.status_id ?? "")) outAt = billedAt.get(order.id) ?? null
     const allFinished = items.every((i) => finishedItemStatusIds.has(i.status_id ?? ""))

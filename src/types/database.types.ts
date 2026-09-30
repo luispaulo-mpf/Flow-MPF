@@ -172,8 +172,10 @@ export type Database = {
         Row: {
           committed: boolean
           delivery_date: string
+          excluded: boolean
           forecast_date: string | null
           id: string
+          included: boolean
           meeting_id: string
           order_id: string
           reason: string | null
@@ -183,8 +185,10 @@ export type Database = {
         Insert: {
           committed?: boolean
           delivery_date: string
+          excluded?: boolean
           forecast_date?: string | null
           id?: string
+          included?: boolean
           meeting_id: string
           order_id: string
           reason?: string | null
@@ -194,8 +198,10 @@ export type Database = {
         Update: {
           committed?: boolean
           delivery_date?: string
+          excluded?: boolean
           forecast_date?: string | null
           id?: string
+          included?: boolean
           meeting_id?: string
           order_id?: string
           reason?: string | null

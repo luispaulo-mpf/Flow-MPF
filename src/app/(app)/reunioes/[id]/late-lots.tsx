@@ -74,7 +74,7 @@ export function LateLots({
                     <Link href={`/pedidos/${lot.orderId}`} className="font-medium text-slate-900 hover:underline">
                       {lot.customerName} · {lot.orderNumber}
                     </Link>
-                    <p className="text-xs text-slate-500">entrega {formatDay(lot.date, true)}</p>
+                    <p className="text-xs text-slate-500">entrega {formatDay(lot.erpDate ?? lot.date, true)}</p>
                   </td>
                   <td className="py-2 pr-3">
                     <span className="whitespace-nowrap rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">
@@ -108,7 +108,7 @@ export function LateLots({
                     {outcomes ? (
                       <OutcomeBadge outcome={outcomes[lot.key]} />
                     ) : canConduct ? (
-                      <LotNoteDialog meetingId={meetingId} lot={lot} note={note}>
+                      <LotNoteDialog meetingId={meetingId} lot={{ ...lot, erpDate: lot.erpDate ?? lot.date }} note={note}>
                         <Button variant="outline" size="sm" className="print:hidden">
                           <Pencil className="size-3.5" />
                           {note?.fromThisMeeting ? "Editar" : "Registrar"}

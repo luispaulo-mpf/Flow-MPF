@@ -24,6 +24,18 @@ function parseErpDate(value: string): string | null {
   return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`
 }
 
+/**
+ * A long client name wraps onto a second line in the PDF, and a subtotal
+ * printed beside it (e.g. "5.062,20", read as "5.062,2 0") ends up inside the
+ * captured name. Money amounts never belong in a client name, so drop them.
+ */
+function cleanCustomerName(name: string): string {
+  return name
+    .replace(/(^|\s)\d{1,3}(?:\.\d{3})*,\d{1,2}(?:\s\d(?=\s|$))?/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 export function isPedidosReportText(text: string): boolean {
   return text.includes("LISTAGEM DE PEDIDOS") && text.includes("Data entrega:")
 }
@@ -132,7 +144,7 @@ export function parsePedidosReport(rawText: string): {
       if (!orderMap.has(numero)) {
         orderMap.set(numero, {
           erpOrderNumber: numero,
-          customerName: cliente.trim(),
+          customerName: cleanCustomerName(cliente),
           issueDate: parseErpDate(emissao),
           deliveryDate,
           totalValue: 0,

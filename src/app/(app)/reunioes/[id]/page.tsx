@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react"
 import { requireUser, canManageOperations } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { listActiveUsers } from "@/lib/queries"
-import { computeAgenda, lotOutcomes, type MeetingAgenda } from "@/lib/meetings"
+import { computeAgenda, loadLotNotes, lotOutcomes, type MeetingAgenda } from "@/lib/meetings"
 import { todayISO } from "@/lib/business-rules"
 import { MeetingHeader } from "./meeting-header"
 import { LateLots } from "./late-lots"
@@ -12,7 +12,6 @@ import { BillingWeeks } from "./billing-weeks"
 import { AttentionPoints } from "./attention-points"
 import { Pendencias, type Pendencia } from "./pendencias"
 import { AreaNotes } from "./area-notes"
-import type { LotNote } from "./lot-note-dialog"
 
 export default async function ReuniaoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -69,45 +68,15 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
   const fromOtherTest = (meetingId: string | null) =>
     !meeting.is_test && meetingId !== id && testMeetingIds.has(meetingId ?? "")
 
+  // Lot notes (committed / reason / forecast / included / excluded): this
+  // meeting's, else carried over from the latest earlier real meeting.
+  const lotNotes = await loadLotNotes(supabase, user.companyId, meeting)
+
   // Open: live from the orders. Closed: exactly as it stood when closed.
   const agenda: MeetingAgenda =
     isOpen || !meeting.snapshot
-      ? await computeAgenda(supabase, user.companyId, meeting.meeting_date)
+      ? await computeAgenda(supabase, user.companyId, meeting.meeting_date, lotNotes)
       : (meeting.snapshot as unknown as MeetingAgenda)
-
-  // ---- Order lot notes (committed / reason / forecast) ----
-  const lotOrderIds = [
-    ...new Set([
-      ...agenda.late.map((l) => l.orderId),
-      ...agenda.weeks.flatMap((w) => w.days.flatMap((d) => d.lots.map((l) => l.orderId))),
-    ]),
-  ]
-  const { data: notesRows } = lotOrderIds.length
-    ? await supabase
-        .from("meeting_order_notes")
-        .select("meeting_id, order_id, delivery_date, committed, reason, forecast_date, meetings(meeting_date)")
-        .in("order_id", lotOrderIds)
-    : { data: [] }
-  // For each lot: this meeting's note, else the latest one from an earlier
-  // meeting (so a reason given last week is still shown this week).
-  const lotNotes: Record<string, LotNote> = {}
-  for (const row of notesRows ?? []) {
-    const rowDate = (row.meetings as { meeting_date: string } | null)?.meeting_date ?? ""
-    if (rowDate > meeting.meeting_date || fromOtherTest(row.meeting_id)) continue
-    const key = `${row.order_id}|${row.delivery_date}`
-    const current = lotNotes[key]
-    const isThis = row.meeting_id === id
-    const newer = !current || (!current.fromThisMeeting && rowDate > current.meetingDate)
-    if (isThis || newer) {
-      lotNotes[key] = {
-        committed: row.committed,
-        reason: row.reason,
-        forecastDate: row.forecast_date,
-        meetingDate: rowDate,
-        fromThisMeeting: isThis,
-      }
-    }
-  }
 
   // ---- Pendências ----
   const taskSelect =
@@ -221,6 +190,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
         canConduct={canConduct}
         outcomes={outcomes}
         today={todayISO()}
+        orders={orderOptions}
       />
 
       <AttentionPoints
