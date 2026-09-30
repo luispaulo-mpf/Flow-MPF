@@ -40,10 +40,11 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
         <div className="mb-6 flex items-center gap-2 px-4">
           <Image
             src="/brand/mpf-logo-white.svg"
+            unoptimized
             alt="MPF Hidráulicos"
-            width={132}
-            height={74}
-            className="h-8 w-auto"
+            width={246}
+            height={100}
+            className="h-14 w-auto"
             priority
           />
           <span className="rounded-full border border-sidebar-foreground/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/80">
@@ -66,10 +67,11 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
               <div className="flex items-center gap-2 px-4 py-4">
                 <Image
                   src="/brand/mpf-logo-white.svg"
+            unoptimized
                   alt="MPF Hidráulicos"
-                  width={132}
-                  height={74}
-                  className="h-8 w-auto"
+                  width={246}
+                  height={100}
+                  className="h-14 w-auto"
                 />
                 <span className="rounded-full border border-sidebar-foreground/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/80">
                   Flow

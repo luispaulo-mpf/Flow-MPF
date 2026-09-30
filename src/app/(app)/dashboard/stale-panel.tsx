@@ -53,7 +53,11 @@ export function StalePanel({ orders, items, days }: { orders: StaleOrder[]; item
       <CardContent className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold text-slate-800">
-            Pedidos na mesma coluna do Kanban <span className="font-normal text-slate-500">({orders.length})</span>
+            Pedidos sem nenhuma movimentação{" "}
+            <span className="font-normal text-slate-500">({orders.length})</span>
+            <span className="block text-xs font-normal text-slate-400">
+              Nem o pedido mudou de coluna no Kanban, nem algum item mudou de etapa.
+            </span>
           </h3>
           {orders.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhum pedido parado.</p>

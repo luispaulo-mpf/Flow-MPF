@@ -241,11 +241,21 @@ export default async function DashboardPage() {
 
   // ---- Sem movimentação: same Kanban column / item stage for STALE_DAYS+ ----
   const staleMs = STALE_DAYS * 86_400_000
+  // An order sitting in a long column (e.g. PRODUÇÃO) is fine while its items
+  // keep moving: it's stalled only if neither it nor any item moved.
+  const sinceLastItemMove = new Map<string, number>()
+  for (const stage of itemStages) {
+    for (const i of stage.items) {
+      if (i.inStageMs === null) continue
+      sinceLastItemMove.set(i.orderId, Math.min(sinceLastItemMove.get(i.orderId) ?? Infinity, i.inStageMs))
+    }
+  }
   const staleOrders: StaleOrder[] = allOrders
     .filter((o) => !statusById.get(o.status_id ?? "")?.is_final)
     .flatMap((o) => {
       const current = orderSegmentsById.get(o.id)?.at(-1)
       if (!current || current.statusId !== o.status_id || current.durationMs < staleMs) return []
+      if ((sinceLastItemMove.get(o.id) ?? Infinity) < staleMs) return []
       return [
         {
           id: o.id,

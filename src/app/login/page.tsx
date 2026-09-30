@@ -16,10 +16,11 @@ export default async function LoginPage({
         <div className="mb-8 flex flex-col items-center text-center">
           <Image
             src="/brand/mpf-logo-color.svg"
+            unoptimized
             alt="MPF Hidráulicos"
-            width={132}
-            height={74}
-            className="h-12 w-auto"
+            width={305}
+            height={100}
+            className="h-16 w-auto"
             priority
           />
           <p className="mt-2 text-sm text-slate-500">MPF Flow · Camada de execução operacional</p>
