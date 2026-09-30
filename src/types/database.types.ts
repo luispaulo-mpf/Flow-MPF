@@ -329,7 +329,7 @@ export type Database = {
       notifications: {
         Row: {
           actor_id: string | null
-          comment_id: string
+          comment_id: string | null
           company_id: string
           created_at: string
           id: string
@@ -341,7 +341,7 @@ export type Database = {
         }
         Insert: {
           actor_id?: string | null
-          comment_id: string
+          comment_id?: string | null
           company_id: string
           created_at?: string
           id?: string

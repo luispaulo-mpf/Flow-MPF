@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { AtSign, Bell, MessageSquare } from "lucide-react"
+import { AtSign, Bell, ClipboardCheck, MessageSquare } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -22,7 +22,8 @@ type Notification = {
   tasks: { title: string } | null
 }
 
-export function conversationHref(n: { order_id: string | null; task_id: string | null }) {
+export function conversationHref(n: { kind?: string; order_id: string | null; task_id: string | null }) {
+  if (n.kind === "TASK_ASSIGNED") return "/tarefas?tab=minhas"
   return n.task_id ? `/mencoes?tarefa=${n.task_id}` : `/mencoes?pedido=${n.order_id}`
 }
 
@@ -37,13 +38,18 @@ function timeAgo(value: string) {
 
 function describe(n: Notification) {
   const who = n.actor?.name ?? "Alguém"
+  if (n.kind === "TASK_ASSIGNED") {
+    const order = n.orders ? ` · pedido ${n.orders.erp_order_number}` : ""
+    return `${who} atribuiu a você a tarefa "${n.tasks?.title ?? ""}"${order}`
+  }
   const where = n.tasks ? `na tarefa "${n.tasks.title}"` : `no pedido ${n.orders?.erp_order_number ?? ""}`
   return n.kind === "MENTION" ? `${who} mencionou você ${where}` : `${who} comentou ${where}`
 }
 
 /**
  * Header bell: unread count + latest notifications, kept live through
- * Supabase Realtime (new comments insert rows here via a database trigger).
+ * Supabase Realtime (database triggers insert rows for new comments and for
+ * task assignments).
  */
 export function NotificationBell({ userId }: { userId: string }) {
   const router = useRouter()
@@ -90,6 +96,11 @@ export function NotificationBell({ userId }: { userId: string }) {
     }
   }, [supabase, userId, load])
 
+  async function markRead(id: string) {
+    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id)
+    load()
+  }
+
   async function markAllRead() {
     await supabase
       .from("notifications")
@@ -129,7 +140,10 @@ export function NotificationBell({ userId }: { userId: string }) {
               <li key={n.id}>
                 <Link
                   href={conversationHref(n)}
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOpen(false)
+                    if (!n.read_at) markRead(n.id)
+                  }}
                   className={cn(
                     "flex gap-2 border-b border-slate-100 px-3 py-2.5 hover:bg-slate-50",
                     !n.read_at && "bg-primary/5",
@@ -137,6 +151,8 @@ export function NotificationBell({ userId }: { userId: string }) {
                 >
                   {n.kind === "MENTION" ? (
                     <AtSign className="mt-0.5 size-4 shrink-0 text-primary" />
+                  ) : n.kind === "TASK_ASSIGNED" ? (
+                    <ClipboardCheck className="mt-0.5 size-4 shrink-0 text-blue-600" />
                   ) : (
                     <MessageSquare className="mt-0.5 size-4 shrink-0 text-slate-400" />
                   )}

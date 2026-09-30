@@ -43,6 +43,7 @@ export default async function MencoesPage({
       .from("notifications")
       .select("order_id, task_id, read_at")
       .eq("user_id", user.id)
+      .in("kind", ["MENTION", "REPLY"])
       .order("created_at", { ascending: false })
       .limit(2000),
     supabase.from("comments").select("order_id, task_id").eq("user_id", user.id).limit(2000),
