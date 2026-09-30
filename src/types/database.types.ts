@@ -168,6 +168,164 @@ export type Database = {
         }
         Relationships: []
       }
+      meeting_order_notes: {
+        Row: {
+          committed: boolean
+          delivery_date: string
+          forecast_date: string | null
+          id: string
+          meeting_id: string
+          order_id: string
+          reason: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          committed?: boolean
+          delivery_date: string
+          forecast_date?: string | null
+          id?: string
+          meeting_id: string
+          order_id: string
+          reason?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          committed?: boolean
+          delivery_date?: string
+          forecast_date?: string | null
+          id?: string
+          meeting_id?: string
+          order_id?: string
+          reason?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_order_notes_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_order_notes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_participants: {
+        Row: {
+          created_at: string
+          id: string
+          meeting_id: string
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meeting_id: string
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_task_reviews: {
+        Row: {
+          meeting_id: string
+          status_at_meeting: string
+          task_id: string
+        }
+        Insert: {
+          meeting_id: string
+          status_at_meeting: string
+          task_id: string
+        }
+        Update: {
+          meeting_id?: string
+          status_at_meeting?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_task_reviews_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_task_reviews_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          meeting_date: string
+          notes: Json
+          snapshot: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_date: string
+          notes?: Json
+          snapshot?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_date?: string
+          notes?: Json
+          snapshot?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           actor_id: string | null
@@ -589,6 +747,8 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          meeting_area: string | null
+          meeting_id: string | null
           order_id: string | null
           order_item_id: string | null
           priority: string
@@ -605,6 +765,8 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          meeting_area?: string | null
+          meeting_id?: string | null
           order_id?: string | null
           order_item_id?: string | null
           priority?: string
@@ -621,6 +783,8 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          meeting_area?: string | null
+          meeting_id?: string | null
           order_id?: string | null
           order_item_id?: string | null
           priority?: string
@@ -649,6 +813,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
             referencedColumns: ["id"]
           },
           {

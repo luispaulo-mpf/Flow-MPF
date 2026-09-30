@@ -36,7 +36,7 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar py-4 md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar py-4 md:flex print:hidden">
         <div className="mb-6 flex items-center gap-2 px-4">
           <Image
             src="/brand/mpf-logo-white.svg"
@@ -54,7 +54,7 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card px-4">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card px-4 print:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
@@ -141,7 +141,7 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
           </DropdownMenu>
         </header>
 
-        <main className="flex-1 overflow-x-hidden p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-x-hidden p-4 md:p-6 print:p-0">{children}</main>
       </div>
     </div>
   )
