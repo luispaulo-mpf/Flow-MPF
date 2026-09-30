@@ -99,6 +99,9 @@ function formatShort(iso: string) {
 /** Days production needs, with all material available, before a delivery. */
 export const RAW_MATERIAL_LEAD_DAYS = 15
 
+/** An item in the same stage this long is flagged as without movement. */
+export const STALE_DAYS = 7
+
 /** "Saiu" = the order reached EXPEDIÇÃO (billed) or any later / final status. */
 function billedStatusIds(statuses: { id: string; name: string; position: number; is_final: boolean }[]) {
   const expedicao = statuses.find((s) =>
@@ -126,7 +129,7 @@ async function loadProductionData(supabase: Client, companyId: string) {
       .is("archived_at", null),
   ])
   const orderIds = (orders ?? []).map((o) => o.id)
-  const [{ data: items }, { data: openItemTasks }] = orderIds.length
+  const [{ data: items }, { data: openItemTasks }, { data: itemHistory }] = orderIds.length
     ? await Promise.all([
         supabase
           .from("order_items")
@@ -138,8 +141,21 @@ async function loadProductionData(supabase: Client, companyId: string) {
           .eq("company_id", companyId)
           .neq("status", "DONE")
           .not("order_item_id", "is", null),
+        supabase
+          .from("order_item_status_history")
+          .select("order_item_id, status_id, entered_at")
+          .eq("company_id", companyId),
       ])
-    : [{ data: [] }, { data: [] }]
+    : [{ data: [] }, { data: [] }, { data: [] }]
+
+  // When each item entered its current stage (latest history entry).
+  const stageSince = new Map<string, { statusId: string; enteredAt: string }>()
+  for (const h of itemHistory ?? []) {
+    const current = stageSince.get(h.order_item_id)
+    if (!current || h.entered_at > current.enteredAt) {
+      stageSince.set(h.order_item_id, { statusId: h.status_id, enteredAt: h.entered_at })
+    }
+  }
 
   return {
     orderStatuses: orderStatuses ?? [],
@@ -147,6 +163,7 @@ async function loadProductionData(supabase: Client, companyId: string) {
     orders: orders ?? [],
     items: items ?? [],
     itemsWithOpenTasks: new Set((openItemTasks ?? []).map((t) => t.order_item_id as string)),
+    stageSince,
   }
 }
 
@@ -339,6 +356,26 @@ export async function computeAgenda(
       orderId,
     })
   }
+
+  // Items that haven't changed stage for STALE_DAYS+ (stuck, or not updated).
+  const stale = activeItems.flatMap((i) => {
+    const since = data.stageSince.get(i.id)
+    if (!since || since.statusId !== i.status_id) return []
+    const days = daysBetween(brDate(since.enteredAt), meetingDate)
+    return days >= STALE_DAYS ? [{ ...i, days, stage: itemStatusName.get(i.status_id ?? "") ?? "—" }] : []
+  })
+  for (const orderId of new Set(stale.map((i) => i.order_id))) {
+    const rows = stale.filter((i) => i.order_id === orderId)
+    const maxDays = Math.max(...rows.map((i) => i.days))
+    const stages = [...new Set(rows.map((i) => i.stage))].join(", ")
+    attention.push({
+      key: `PRODUCAO|stale|${orderId}`,
+      area: "PRODUCAO",
+      title: `${label(orderId)}: ${rows.length} ${plural(rows.length)} sem movimentação há até ${maxDays} dias (${stages})`,
+      orderId,
+    })
+  }
+
   const areaOrder = MEETING_AREAS.map((a) => a.key as string)
   attention.sort(
     (a, b) => areaOrder.indexOf(a.area) - areaOrder.indexOf(b.area) || a.title.localeCompare(b.title),

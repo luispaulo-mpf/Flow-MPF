@@ -27,6 +27,7 @@ import {
 } from "@/lib/business-rules"
 import { buildSegments, formatDuration, summarizeByStatus, summarizeCycle, type HistoryRow } from "@/lib/history"
 import { ItemStagePanel, type ItemStage, type StageItem } from "./item-stage-panel"
+import { StalePanel, STALE_DAYS, type StaleItem, type StaleOrder } from "./stale-panel"
 import {
   ClipboardList,
   Clock,
@@ -238,6 +239,33 @@ export default async function DashboardPage() {
     activeOrderStatuses.map((s) => ({ id: s.id, name: s.name })),
   )
 
+  // ---- Sem movimentação: same Kanban column / item stage for STALE_DAYS+ ----
+  const staleMs = STALE_DAYS * 86_400_000
+  const staleOrders: StaleOrder[] = allOrders
+    .filter((o) => !statusById.get(o.status_id ?? "")?.is_final)
+    .flatMap((o) => {
+      const current = orderSegmentsById.get(o.id)?.at(-1)
+      if (!current || current.statusId !== o.status_id || current.durationMs < staleMs) return []
+      return [
+        {
+          id: o.id,
+          orderNumber: o.erp_order_number,
+          customerName: o.customer_name,
+          stageName: statusById.get(o.status_id ?? "")?.name ?? "—",
+          days: Math.floor(current.durationMs / 86_400_000),
+        },
+      ]
+    })
+    .sort((a, b) => b.days - a.days)
+  const staleItems: StaleItem[] = itemStages
+    .filter((stage) => !isItemFinishedStatusName(stage.name))
+    .flatMap((stage) =>
+      stage.items
+        .filter((i) => (i.inStageMs ?? 0) >= staleMs)
+        .map((i) => ({ ...i, stageName: stage.name, days: Math.floor((i.inStageMs ?? 0) / 86_400_000) })),
+    )
+    .sort((a, b) => b.days - a.days)
+
   const cycleStat = summarizeCycle(
     allOrders.map((o) => ({ id: o.id, segments: orderSegmentsById.get(o.id) ?? [] })),
     (statusId) => statusById.get(statusId)?.is_final ?? false,
@@ -331,6 +359,8 @@ export default async function DashboardPage() {
       </div>
 
       <ItemStagePanel stages={itemStages} />
+
+      <StalePanel orders={staleOrders} items={staleItems} days={STALE_DAYS} />
 
       <Card>
         <CardContent className="pt-4">
