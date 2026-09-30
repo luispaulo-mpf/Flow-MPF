@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/domain/status-badge"
 import { PriorityBadge } from "@/components/domain/priority-badge"
 import {
   alertReason,
+  billedStatusIds,
   brDate,
   isBlockedStatusName,
   isItemFinishedStatusName,
@@ -234,17 +235,23 @@ export default async function DashboardPage() {
       : null
 
   // ---- 1.2 / 1.3 Tempo por etapa e ciclo operacional (usam order_status_history) ----
+  // History of every order, archived included (the cycle and on-time rate
+  // need past orders); stage time uses only the active ones.
   const activeOrderIds = new Set(allOrders.map((o) => o.id))
   const orderHistoryByOrder = new Map<string, HistoryRow[]>()
   for (const row of orderStatusHistory ?? []) {
-    if (!activeOrderIds.has(row.order_id)) continue
     const list = orderHistoryByOrder.get(row.order_id) ?? []
     list.push({ statusId: row.status_id, statusName: row.statuses?.name ?? "", enteredAt: row.entered_at })
     orderHistoryByOrder.set(row.order_id, list)
   }
-  const orderSegmentsById = new Map(
+  const allOrderSegmentsById = new Map(
     Array.from(orderHistoryByOrder.entries()).map(([orderId, rows]) => [orderId, buildSegments(rows)]),
   )
+  const orderSegmentsById = new Map(
+    Array.from(allOrderSegmentsById.entries()).filter(([orderId]) => activeOrderIds.has(orderId)),
+  )
+  // Billed = reached EXPEDIÇÃO (or any later / final status): the cycle ends there.
+  const billedIds = billedStatusIds(orderStatuses ?? [])
 
   // The final status is where orders end, not a stage they spend time in.
   // Time "aguardando cliente" doesn't count against the stage (Engenharia,
@@ -274,19 +281,22 @@ export default async function DashboardPage() {
     activeOrderStatuses.map((s) => ({ id: s.id, name: s.name })),
   )
 
+  // Ongoing orders are only the active ones (archived orders all got billed).
   const cycleStat = summarizeCycle(
-    allOrders.map((o) => ({ id: o.id, segments: orderSegmentsById.get(o.id) ?? [] })),
-    (statusId) => statusById.get(statusId)?.is_final ?? false,
+    allOrdersRaw
+      .filter((o) => !o.archived_at || billedIds.has(o.status_id ?? ""))
+      .map((o) => ({ id: o.id, segments: allOrderSegmentsById.get(o.id) ?? [] })),
+    (statusId) => billedIds.has(statusId),
   )
 
-  // ---- 8.4 Cumprimento de prazo ----
-  const concludedWithDate = allOrders.filter(
-    (o) => statusById.get(o.status_id ?? "")?.is_final && o.delivery_date,
+  // ---- 8.4 Cumprimento de prazo (delivery date = billing date) ----
+  const concludedWithDate = allOrdersRaw.filter(
+    (o) => billedIds.has(o.status_id ?? "") && o.delivery_date,
   )
   const onTimeCount = concludedWithDate.filter((o) => {
-    const segments = orderSegmentsById.get(o.id) ?? []
-    const finalSeg = segments.find((s) => statusById.get(s.statusId)?.is_final)
-    return finalSeg ? brDate(finalSeg.enteredAt) <= (o.delivery_date as string) : false
+    const segments = allOrderSegmentsById.get(o.id) ?? []
+    const billedSeg = segments.find((s) => billedIds.has(s.statusId))
+    return billedSeg ? brDate(billedSeg.enteredAt) <= (o.delivery_date as string) : false
   }).length
   const cumprimentoPercent = concludedWithDate.length > 0 ? pct(onTimeCount, concludedWithDate.length) : null
 
@@ -467,7 +477,7 @@ export default async function DashboardPage() {
           <CardContent className="flex flex-col gap-3">
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div>
-                <p className="text-xs text-slate-400">Médio (concluídos)</p>
+                <p className="text-xs text-slate-400">Médio (faturados)</p>
                 <p className="font-medium text-slate-800">{formatDuration(cycleStat.avgMs)}</p>
               </div>
               <div>
@@ -480,8 +490,8 @@ export default async function DashboardPage() {
               </div>
             </div>
             <p className="text-xs text-slate-500">
-              {cycleStat.ongoing.length} pedidos em andamento — ciclo acumulado até agora, não é
-              previsão de conclusão.
+              Da entrada do pedido no Flow até a chegada na Expedição (faturado), incluindo pedidos já
+              arquivados. {cycleStat.ongoing.length} pedidos ainda não faturados.
             </p>
           </CardContent>
         </Card>
@@ -518,7 +528,7 @@ export default async function DashboardPage() {
             <p>
               Cumprimento de prazo:{" "}
               <span className="font-medium text-slate-900">{cumprimentoPercent ?? "—"}</span>
-              {cumprimentoPercent ? " dos pedidos concluídos" : " (nenhum pedido concluído com prazo ainda)"}
+              {cumprimentoPercent ? " dos pedidos faturados (chegada na Expedição até a data de entrega)" : " (nenhum pedido faturado com prazo ainda)"}
             </p>
           </CardContent>
         </Card>

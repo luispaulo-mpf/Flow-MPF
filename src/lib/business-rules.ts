@@ -33,6 +33,18 @@ export function formatDateTimeBR(
   })
 }
 
+/** "Saiu" = the order reached EXPEDIÇÃO (billed) or any later / final status. */
+export function billedStatusIds(statuses: { id: string; name: string; position: number; is_final: boolean }[]) {
+  const expedicao = statuses.find((s) =>
+    s.name.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().includes("EXPEDI"),
+  )
+  return new Set(
+    statuses
+      .filter((s) => s.is_final || (expedicao ? s.position >= expedicao.position : false))
+      .map((s) => s.id),
+  )
+}
+
 /** Order stages where an order can be held "aguardando cliente". */
 export function isClientWaitStageName(name: string | null | undefined): boolean {
   const n = (name ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase()

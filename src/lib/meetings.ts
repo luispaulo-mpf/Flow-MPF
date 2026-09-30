@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database.types"
 import {
   CLIENT_WAIT_ESCALATION_DAYS,
+  billedStatusIds,
   brDate,
   isBlockedStatusName,
   isItemFinishedStatusName,
@@ -99,18 +100,6 @@ function formatShort(iso: string) {
 
 /** Days production needs, with all material available, before a delivery. */
 export const RAW_MATERIAL_LEAD_DAYS = 15
-
-/** "Saiu" = the order reached EXPEDIÇÃO (billed) or any later / final status. */
-function billedStatusIds(statuses: { id: string; name: string; position: number; is_final: boolean }[]) {
-  const expedicao = statuses.find((s) =>
-    s.name.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().includes("EXPEDI"),
-  )
-  return new Set(
-    statuses
-      .filter((s) => s.is_final || (expedicao ? s.position >= expedicao.position : false))
-      .map((s) => s.id),
-  )
-}
 
 async function loadProductionData(supabase: Client, companyId: string) {
   const [{ data: orderStatuses }, { data: itemStatuses }, { data: orders }, { data: clientWaits }] = await Promise.all([
