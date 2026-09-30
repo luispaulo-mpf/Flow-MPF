@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { cn } from "@/lib/utils"
+import { brDate } from "@/lib/business-rules"
 
 type Thread = {
   key: string
@@ -20,8 +21,7 @@ type Thread = {
 
 function formatWhen(value: string) {
   const date = new Date(value)
-  const today = new Date()
-  const sameDay = date.toDateString() === today.toDateString()
+  const sameDay = brDate(date) === brDate()
   return date.toLocaleString("pt-BR", {
     timeZone: "America/Sao_Paulo",
     ...(sameDay ? { hour: "2-digit", minute: "2-digit" } : { day: "2-digit", month: "2-digit" }),

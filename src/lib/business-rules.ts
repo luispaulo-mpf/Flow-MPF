@@ -4,9 +4,23 @@
  * definitions.
  */
 
+/** The business runs on Brasília time; servers (Vercel) run on UTC. */
+export const APP_TIME_ZONE = "America/Sao_Paulo"
+
+const brDateFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: APP_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+})
+
+/** YYYY-MM-DD of an instant (default: now) in Brasília time. */
+export function brDate(value: Date | string = new Date()): string {
+  return brDateFormat.format(typeof value === "string" ? new Date(value) : value)
+}
+
 function startOfToday() {
-  const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return parseDateOnly(brDate()) as Date
 }
 
 function parseDateOnly(value: string | null): Date | null {
@@ -108,11 +122,11 @@ function toISODate(date: Date) {
 }
 
 export function todayISO(): string {
-  return toISODate(new Date())
+  return brDate()
 }
 
 export function riskLimitISO(): string {
-  const d = new Date()
+  const d = startOfToday()
   d.setDate(d.getDate() + 2)
   return toISODate(d)
 }

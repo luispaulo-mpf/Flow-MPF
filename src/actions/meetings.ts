@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireUser, canManageOperations } from "@/lib/auth"
 import { logActivity } from "@/lib/activity-log"
 import { computeAgenda, loadLotNotes, MEETING_AREAS } from "@/lib/meetings"
+import { brDate } from "@/lib/business-rules"
 
 /** ADMIN/GESTOR conduct meetings; a closed meeting never changes. */
 async function assertCanConduct(meetingId: string) {
@@ -252,7 +253,7 @@ export async function closeMeeting(meetingId: string) {
         !testMeetingIds.has(t.meeting_id ?? "")) &&
       (t.status !== "DONE" ||
         t.meeting_id === meetingId ||
-        (t.completed_at && previous && t.completed_at.slice(0, 10) >= previous.meeting_date)),
+        (t.completed_at && previous && brDate(t.completed_at) >= previous.meeting_date)),
   )
   if (discussed.length > 0) {
     await supabase.from("meeting_task_reviews").upsert(

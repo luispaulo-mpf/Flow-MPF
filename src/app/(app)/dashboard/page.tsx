@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/domain/status-badge"
 import { PriorityBadge } from "@/components/domain/priority-badge"
 import {
   alertReason,
+  brDate,
   isBlockedStatusName,
   isItemFinishedStatusName,
   isItemLate,
@@ -249,7 +250,7 @@ export default async function DashboardPage() {
   const onTimeCount = concludedWithDate.filter((o) => {
     const segments = orderSegmentsById.get(o.id) ?? []
     const finalSeg = segments.find((s) => statusById.get(s.statusId)?.is_final)
-    return finalSeg ? finalSeg.enteredAt.slice(0, 10) <= (o.delivery_date as string) : false
+    return finalSeg ? brDate(finalSeg.enteredAt) <= (o.delivery_date as string) : false
   }).length
   const cumprimentoPercent = concludedWithDate.length > 0 ? pct(onTimeCount, concludedWithDate.length) : null
 

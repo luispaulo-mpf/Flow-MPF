@@ -5,7 +5,7 @@ import { requireUser, canManageOperations } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { listActiveUsers } from "@/lib/queries"
 import { computeAgenda, loadLotNotes, lotOutcomes, type MeetingAgenda } from "@/lib/meetings"
-import { todayISO } from "@/lib/business-rules"
+import { brDate, todayISO } from "@/lib/business-rules"
 import { MeetingHeader } from "./meeting-header"
 import { LateLots } from "./late-lots"
 import { BillingWeeks } from "./billing-weeks"
@@ -94,7 +94,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
         (t.status !== "DONE" ||
           t.meeting_id === id ||
           Boolean(
-            t.completed_at && previousMeeting && t.completed_at.slice(0, 10) >= previousMeeting.meeting_date,
+            t.completed_at && previousMeeting && brDate(t.completed_at) >= previousMeeting.meeting_date,
           )),
     )
   } else {

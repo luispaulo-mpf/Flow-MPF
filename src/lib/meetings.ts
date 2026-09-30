@@ -2,6 +2,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database.types"
 import {
+  brDate,
   isBlockedStatusName,
   isItemFinishedStatusName,
   isThirdPartyStatusName,
@@ -409,7 +410,7 @@ export async function lotOutcomes(supabase: Client, companyId: string) {
     }
     const isOut = (order && billed.has(order.status_id ?? "")) || allFinished
     if (!isOut) outcomes.set(key, "pending")
-    else outcomes.set(key, outAt && outAt.slice(0, 10) > date ? "late_done" : "on_time")
+    else outcomes.set(key, outAt && brDate(outAt) > date ? "late_done" : "on_time")
   }
   return outcomes
 }
