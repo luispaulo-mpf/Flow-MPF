@@ -10,6 +10,13 @@ import { isPedidoPorItemReportText, parsePedidoPorItemReport } from "@/lib/impor
 import { recordOrderItemStatusHistory, recordOrderStatusHistory } from "@/lib/status-history"
 import type { ImportOrderGroup, ImportPreview, ImportReportType } from "@/lib/import/types"
 
+/** YYYY-MM-DD -> DD/MM/YYYY for history messages. */
+function formatDay(value: string | null) {
+  if (!value) return "sem data"
+  const [y, m, d] = value.split("-")
+  return `${d}/${m}/${y}`
+}
+
 export type PreviewState = { preview: ImportPreview | null; error: string | null }
 export type ConfirmState = { success: boolean; error: string | null; summary: string | null }
 
@@ -267,6 +274,8 @@ export async function confirmImport(
       }
 
       let itemsTouched = 0
+      // Only real date changes are written to the order history.
+      const dateChanges: string[] = []
       for (const reportItem of group.items) {
         const key = reportItem.itemCode ?? ""
         const bucket = remainingByCode.get(key) ?? []
@@ -281,6 +290,9 @@ export async function confirmImport(
               .from("order_items")
               .update({ delivery_date: reportItem.deliveryDate ?? null })
               .eq("id", match.id)
+            dateChanges.push(
+              `item ${reportItem.itemCode ?? "sem código"}: ${formatDay(match.delivery_date)} → ${formatDay(reportItem.deliveryDate ?? null)}`,
+            )
           }
         } else if (mayAddItems) {
           const { data: insertedItem } = await supabase
@@ -310,15 +322,23 @@ export async function confirmImport(
         itemsTouched += 1
       }
 
-      await logActivity(supabase, {
-        companyId: user.companyId,
-        userId: user.id,
-        orderId,
-        action: "Pedido importado",
-        description: isNewOrder
-          ? `Pedido ${group.erpOrderNumber} importado (${itemsTouched} itens, com prazos por item) via relatório "${reportLabel}".`
-          : `Pedido ${group.erpOrderNumber}: datas de entrega de ${itemsTouched} itens reconciliadas via relatório "${reportLabel}".`,
-      })
+      if (isNewOrder) {
+        await logActivity(supabase, {
+          companyId: user.companyId,
+          userId: user.id,
+          orderId,
+          action: "Pedido importado",
+          description: `Pedido ${group.erpOrderNumber} importado (${itemsTouched} itens, com prazos por item) via relatório "${reportLabel}".`,
+        })
+      } else if (dateChanges.length > 0) {
+        await logActivity(supabase, {
+          companyId: user.companyId,
+          userId: user.id,
+          orderId,
+          action: "Prazo alterado no ERP",
+          description: `Datas de entrega atualizadas pelo relatório "${reportLabel}": ${dateChanges.join("; ")}.`,
+        })
+      }
     }
 
     revalidatePath("/pedidos")

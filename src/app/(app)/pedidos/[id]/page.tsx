@@ -64,6 +64,8 @@ export default async function OrderDetailPage({
       .from("activity_logs")
       .select("id, action, description, created_at, users(name)")
       .eq("order_id", id)
+      // Old import entries written even when no date changed (kept, just hidden).
+      .not("description", "like", "%itens reconciliadas via relatório%")
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
