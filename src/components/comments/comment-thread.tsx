@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { createComment, type ActionResult } from "@/actions/comments"
 import { MentionTextarea, type MentionUser } from "./mention-textarea"
+import { CommentReactions, type Reaction } from "./comment-reactions"
 import { cn } from "@/lib/utils"
 import { formatDateTimeBR } from "@/lib/business-rules"
 
@@ -89,6 +90,7 @@ export function CommentThread({
   const [users, setUsers] = useState<MentionUser[]>([])
   const [comments, setComments] = useState<Comment[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [reactions, setReactions] = useState<Reaction[]>([])
   const [formKey, setFormKey] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -173,6 +175,60 @@ export function CommentThread({
     }
   }, [supabase, column, targetId, load])
 
+  // ---- Reactions: kept fully separate from the messages, so any failure
+  // here (query or live channel) only hides reactions, never messages. ----
+  const commentIds = useMemo(() => (comments ?? []).map((c) => c.id).join(","), [comments])
+  const loadReactions = useCallback(async () => {
+    if (!commentIds) return setReactions([])
+    const { data, error } = await supabase
+      .from("comment_reactions")
+      .select("comment_id, user_id, emoji")
+      .in("comment_id", commentIds.split(","))
+      .order("created_at", { ascending: true })
+    if (!error) setReactions(data ?? [])
+  }, [supabase, commentIds])
+
+  useEffect(() => {
+    const timer = setTimeout(() => loadReactions(), 0)
+    return () => clearTimeout(timer)
+  }, [loadReactions])
+
+  useEffect(() => {
+    if (!targetId) return
+    // Delete events can't be filtered by thread: re-read this thread's reactions on any change.
+    const channel = supabase
+      .channel(`reactions:${column}:${targetId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "comment_reactions" }, () => {
+        loadReactions()
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, column, targetId, loadReactions])
+
+  // Optimistic toggle of the viewer's own reaction; the live channel re-syncs.
+  const toggleReaction = useCallback(
+    async (commentId: string, emoji: string) => {
+      if (!me) return
+      const matches = (r: Reaction) => r.comment_id === commentId && r.user_id === me.id && r.emoji === emoji
+      const exists = reactions.some(matches)
+      setReactions((prev) =>
+        exists ? prev.filter((r) => !matches(r)) : [...prev, { comment_id: commentId, user_id: me.id, emoji }],
+      )
+      const { error } = exists
+        ? await supabase
+            .from("comment_reactions")
+            .delete()
+            .eq("comment_id", commentId)
+            .eq("user_id", me.id)
+            .eq("emoji", emoji)
+        : await supabase.from("comment_reactions").insert({ comment_id: commentId, user_id: me.id, emoji })
+      if (error) loadReactions()
+    },
+    [supabase, me, reactions, loadReactions],
+  )
+
   // Load right away too: the messages must never depend on the live channel
   // connecting (if it hangs, the conversation would otherwise stay empty).
   useEffect(() => {
@@ -220,22 +276,26 @@ export function CommentThread({
               .map((id) => usersById.get(id))
               .filter((u): u is MentionUser => Boolean(u))
             return (
-              <div
-                key={c.id}
-                className={cn(
-                  "max-w-[85%] rounded-lg p-2.5 text-sm",
-                  mine ? "self-end bg-primary/10" : "self-start bg-slate-100",
-                )}
-              >
-                <div className="mb-0.5 flex items-center justify-between gap-3 text-xs text-slate-500">
-                  <span className="font-medium text-slate-700">
-                    {mine ? "Você" : (c.users?.name ?? "Usuário")}
-                  </span>
-                  <span>{formatDateTime(c.created_at)}</span>
+              <div key={c.id} className={cn("group flex max-w-[85%] flex-col", mine ? "self-end" : "self-start")}>
+                <div className={cn("rounded-lg p-2.5 text-sm", mine ? "bg-primary/10" : "bg-slate-100")}>
+                  <div className="mb-0.5 flex items-center justify-between gap-3 text-xs text-slate-500">
+                    <span className="font-medium text-slate-700">
+                      {mine ? "Você" : (c.users?.name ?? "Usuário")}
+                    </span>
+                    <span>{formatDateTime(c.created_at)}</span>
+                  </div>
+                  <p className="whitespace-pre-wrap break-words text-slate-800">
+                    <CommentContent content={c.content} mentioned={mentioned} meId={me?.id ?? null} />
+                  </p>
                 </div>
-                <p className="whitespace-pre-wrap break-words text-slate-800">
-                  <CommentContent content={c.content} mentioned={mentioned} meId={me?.id ?? null} />
-                </p>
+                <CommentReactions
+                  reactions={reactions.filter((r) => r.comment_id === c.id)}
+                  meId={me?.id ?? null}
+                  canReact={canComment}
+                  nameOf={(id) => usersById.get(id)?.name ?? "Usuário"}
+                  onToggle={(emoji) => toggleReaction(c.id, emoji)}
+                  alignEnd={mine}
+                />
               </div>
             )
           })
