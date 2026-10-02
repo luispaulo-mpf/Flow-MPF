@@ -76,45 +76,6 @@ export type Database = {
           },
         ]
       }
-      comment_reactions: {
-        Row: {
-          comment_id: string
-          company_id: string
-          created_at: string
-          emoji: string
-          user_id: string
-        }
-        Insert: {
-          comment_id: string
-          company_id?: string
-          created_at?: string
-          emoji: string
-          user_id: string
-        }
-        Update: {
-          comment_id?: string
-          company_id?: string
-          created_at?: string
-          emoji?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "comment_reactions_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "comments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "comment_reactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       comments: {
         Row: {
           company_id: string
