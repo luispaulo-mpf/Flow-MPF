@@ -71,7 +71,7 @@ export default async function MencoesPage({
   if (selected?.kind === "tarefa") taskIds.add(selected.id)
   if (selected?.kind === "pedido") orderIds.add(selected.id)
 
-  const commentSelect = "content, created_at, order_id, task_id, users(name)"
+  const commentSelect = "content, created_at, order_id, task_id, users!comments_user_id_fkey(name)"
   const [orderComments, taskComments, orders, tasks] = await Promise.all([
     orderIds.size
       ? supabase

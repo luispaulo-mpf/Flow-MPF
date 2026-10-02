@@ -88,6 +88,7 @@ export function CommentThread({
   const [me, setMe] = useState<Me | null>(null)
   const [users, setUsers] = useState<MentionUser[]>([])
   const [comments, setComments] = useState<Comment[] | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [formKey, setFormKey] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -110,12 +111,14 @@ export function CommentThread({
   )
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("comments")
-      .select("id, content, created_at, user_id, mentioned_user_ids, users(name)")
+      .select("id, content, created_at, user_id, mentioned_user_ids, users!comments_user_id_fkey(name)")
       .eq(column, targetId)
       .order("created_at", { ascending: true })
-    setComments((data ?? []) as Comment[])
+    // A failed read must never look like an empty conversation.
+    setLoadError(error ? error.message : null)
+    if (!error) setComments((data ?? []) as Comment[])
   }, [supabase, column, targetId])
 
   const [state, formAction, pending] = useActionState(
@@ -161,7 +164,7 @@ export function CommentThread({
           load()
         },
       )
-      // Load once the live channel is up so nothing posted in between is missed.
+      // Re-load once the live channel is up so nothing posted in between is missed.
       .subscribe((status) => {
         if (status === "SUBSCRIBED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") load()
       })
@@ -169,6 +172,14 @@ export function CommentThread({
       supabase.removeChannel(channel)
     }
   }, [supabase, column, targetId, load])
+
+  // Load right away too: the messages must never depend on the live channel
+  // connecting (if it hangs, the conversation would otherwise stay empty).
+  useEffect(() => {
+    if (!targetId) return
+    const timer = setTimeout(() => load(), 0)
+    return () => clearTimeout(timer)
+  }, [targetId, load])
 
   // Anything visible here counts as read — on open and whenever a new
   // comment arrives while the conversation is on screen.
@@ -188,8 +199,16 @@ export function CommentThread({
   return (
     <div className="flex flex-col gap-3">
       <div ref={listRef} className={cn("flex flex-col gap-2 overflow-y-auto pr-1", maxHeightClass)}>
+        {loadError ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">
+            Não foi possível carregar as mensagens (elas continuam salvas).
+            <Button type="button" size="sm" variant="outline" className="h-7" onClick={() => load()}>
+              Tentar de novo
+            </Button>
+          </div>
+        ) : null}
         {comments === null ? (
-          <p className="text-sm text-slate-400">Carregando...</p>
+          loadError ? null : <p className="text-sm text-slate-400">Carregando...</p>
         ) : comments.length === 0 ? (
           <p className="text-sm text-slate-500">
             Nenhum comentário ainda. Use @ para chamar alguém para a conversa.
